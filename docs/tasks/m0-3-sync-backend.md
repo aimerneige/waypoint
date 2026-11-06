@@ -58,6 +58,9 @@
 - 进程内 hub 按 tripId 广播；连接不能被 http.Server 的 WriteTimeout 掐断（用 `http.ResponseController` 处理）；连接断开时清理。可以不经 strict server 实现，但必须写进 openapi.yaml。
 - 确认 Caddy 反代对 SSE 不缓冲（M0.1 已配置 flush_interval，验证之）。
 
+## 1.10 请求体大小
+M0.2 的中间件对所有请求统一 `MaxBytesReader(16KB)`。改为按路由配置：默认 16KB；`POST /api/trips/{tripId}/ops` 放宽到 2MB；为 M4 上传预留按 `MAX_UPLOAD_MB` 配置的路由级上限。超限返回 413 + 统一错误体 `payload_too_large`。
+
 ## 2. 测试（必须，集成测试用真实 PostgreSQL）
 - 幂等：同一 op 提交两次 → 第二次 duplicate、seq 不变；被拒绝的 op 重复提交 → 相同拒绝。
 - 并发：两个 goroutine 各推 100 条到同一行程 → seq 1..200 无空洞无重复。
@@ -79,4 +82,4 @@
 3. 结束后 `docker compose --profile dev down`（不加 -v）；不要 prune、不要动其它项目。
 
 ## 约束
-- 不要 git commit。最终回复用中文：完成内容、接口与表清单、验收命令及实际结果、偏离之处及原因。
+- 任务书即已确认方案，范围内改动均已批准，无需等待确认，直接实施。不要 git commit。最终回复用中文：完成内容、接口与表清单、验收命令及实际结果、偏离之处及原因。

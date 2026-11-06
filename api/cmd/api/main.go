@@ -69,7 +69,9 @@ func run() error {
 	if err := os.MkdirAll(c.UploadDir, 0700); err != nil {
 		return fmt.Errorf("create upload directory: %w", err)
 	}
-	server := &http.Server{Addr: ":" + strconv.Itoa(c.Port), Handler: httpapi.New(pool), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second}
+	handler, closeMailer := httpapi.New(pool, c, nil)
+	defer closeMailer()
+	server := &http.Server{Addr: ":" + strconv.Itoa(c.Port), Handler: handler, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second}
 	done := make(chan error, 1)
 	go func() { done <- server.ListenAndServe() }()
 	slog.Info("API listening", "port", c.Port)

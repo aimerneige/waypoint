@@ -4,7 +4,49 @@
 
 package db
 
+import (
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
 type AppMetum struct {
 	Key   string
 	Value string
+}
+
+type EmailToken struct {
+	ID        pgtype.UUID
+	UserID    pgtype.UUID
+	Purpose   string
+	TokenHash []byte
+	ExpiresAt pgtype.Timestamptz
+	UsedAt    pgtype.Timestamptz
+	CreatedAt pgtype.Timestamptz
+}
+
+type LoginFailure struct {
+	Email       string
+	Failures    int32
+	LockedUntil pgtype.Timestamptz
+}
+
+type Session struct {
+	ID         pgtype.UUID
+	UserID     pgtype.UUID
+	TokenHash  []byte
+	CreatedAt  pgtype.Timestamptz
+	LastSeenAt pgtype.Timestamptz
+	ExpiresAt  pgtype.Timestamptz
+	UserAgent  string
+	Ip         string
+}
+
+type User struct {
+	ID              pgtype.UUID
+	Email           string
+	PasswordHash    string
+	Nickname        string
+	AvatarUrl       pgtype.Text
+	EmailVerifiedAt pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
 }

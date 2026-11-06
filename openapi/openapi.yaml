@@ -1,39 +1,347 @@
 openapi: 3.0.3
 info:
   title: Waypoint API
-  version: 0.1.0
+  version: 0.2.0
 paths:
   /api/healthz:
     get:
       operationId: healthz
       responses:
         '200':
-          description: Process is alive
+          description: OK
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Status'
+              schema: {$ref: '#/components/schemas/Status'}
+        default: {$ref: '#/components/responses/Error'}
   /api/readyz:
     get:
       operationId: readyz
       responses:
         '200':
-          description: Database is ready
+          description: OK
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Status'
-        '503':
-          description: Database is unavailable
+              schema: {$ref: '#/components/schemas/Status'}
+        '503': {$ref: '#/components/responses/Error'}
+        default: {$ref: '#/components/responses/Error'}
+  /api/auth/csrf:
+    get:
+      operationId: getCSRF
+      responses:
+        '200':
+          description: 成功
+          headers:
+            Set-Cookie:
+              schema: {type: string}
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Status'
+              schema: {$ref: '#/components/schemas/CSRF'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+        default: {$ref: '#/components/responses/Error'}
+  /api/auth/register:
+    post:
+      operationId: register
+      description: Cookie 及未登录请求须双提交 wp_csrf Cookie 和 X-CSRF-Token；有效 Bearer 免 CSRF。
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RegisterBody'}
+      responses:
+        '200':
+          description: 成功
+          headers:
+            Set-Cookie:
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthResult'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+        default: {$ref: '#/components/responses/Error'}
+  /api/auth/login:
+    post:
+      operationId: login
+      description: Cookie 及未登录请求须双提交 wp_csrf Cookie 和 X-CSRF-Token；有效 Bearer 免 CSRF。
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/LoginBody'}
+      responses:
+        '200':
+          description: 成功
+          headers:
+            Set-Cookie:
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthResult'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+        default: {$ref: '#/components/responses/Error'}
+  /api/auth/logout:
+    post:
+      operationId: logout
+      security: [{cookieAuth: []}, {bearerAuth: []}]
+      description: Cookie 及未登录请求须双提交 wp_csrf Cookie 和 X-CSRF-Token；有效 Bearer 免 CSRF。
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          schema: {type: string}
+      responses:
+        '200':
+          description: 成功
+          headers:
+            Set-Cookie:
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Success'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+        default: {$ref: '#/components/responses/Error'}
+  /api/auth/verify-email:
+    post:
+      operationId: verifyEmail
+      description: Cookie 及未登录请求须双提交 wp_csrf Cookie 和 X-CSRF-Token；有效 Bearer 免 CSRF。
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/VerifyEmailBody'}
+      responses:
+        '200':
+          description: 成功
+          headers:
+            Set-Cookie:
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Success'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+        default: {$ref: '#/components/responses/Error'}
+  /api/auth/resend-verification:
+    post:
+      operationId: resendVerification
+      security: [{cookieAuth: []}, {bearerAuth: []}]
+      description: Cookie 及未登录请求须双提交 wp_csrf Cookie 和 X-CSRF-Token；有效 Bearer 免 CSRF。
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          schema: {type: string}
+      responses:
+        '200':
+          description: 成功
+          headers:
+            Set-Cookie:
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Success'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+        default: {$ref: '#/components/responses/Error'}
+  /api/auth/forgot-password:
+    post:
+      operationId: forgotPassword
+      description: Cookie 及未登录请求须双提交 wp_csrf Cookie 和 X-CSRF-Token；有效 Bearer 免 CSRF。
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ForgotPasswordBody'}
+      responses:
+        '200':
+          description: 成功
+          headers:
+            Set-Cookie:
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Success'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+        default: {$ref: '#/components/responses/Error'}
+  /api/auth/reset-password:
+    post:
+      operationId: resetPassword
+      description: Cookie 及未登录请求须双提交 wp_csrf Cookie 和 X-CSRF-Token；有效 Bearer 免 CSRF。
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ResetPasswordBody'}
+      responses:
+        '200':
+          description: 成功
+          headers:
+            Set-Cookie:
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Success'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+        default: {$ref: '#/components/responses/Error'}
+  /api/auth/change-password:
+    post:
+      operationId: changePassword
+      security: [{cookieAuth: []}, {bearerAuth: []}]
+      description: Cookie 及未登录请求须双提交 wp_csrf Cookie 和 X-CSRF-Token；有效 Bearer 免 CSRF。
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ChangePasswordBody'}
+      responses:
+        '200':
+          description: 成功
+          headers:
+            Set-Cookie:
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Success'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+        default: {$ref: '#/components/responses/Error'}
+  /api/me:
+    get:
+      operationId: getMe
+      security: [{cookieAuth: []}, {bearerAuth: []}]
+      responses:
+        '200':
+          description: 成功
+          headers:
+            Set-Cookie:
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/User'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+        default: {$ref: '#/components/responses/Error'}
+    patch:
+      operationId: updateMe
+      security: [{cookieAuth: []}, {bearerAuth: []}]
+      description: Cookie 及未登录请求须双提交 wp_csrf Cookie 和 X-CSRF-Token；有效 Bearer 免 CSRF。
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateMeBody'}
+      responses:
+        '200':
+          description: 成功
+          headers:
+            Set-Cookie:
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/User'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+        default: {$ref: '#/components/responses/Error'}
 components:
+  securitySchemes:
+    cookieAuth: {type: apiKey, in: cookie, name: wp_session}
+    bearerAuth: {type: http, scheme: bearer}
+  responses:
+    Error:
+      description: 统一错误
+      headers:
+        Retry-After:
+          description: 限流等待秒数
+          schema: {type: integer}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
   schemas:
-    Status:
-      type: object
-      required: [status]
-      properties:
-        status:
-          type: string
+    Status: {"type":"object","required":["status"],"properties":{"status":{"type":"string"}}}
+    Error: {"type":"object","required":["error"],"properties":{"error":{"type":"object","required":["code","message"],"properties":{"code":{"type":"string"},"message":{"type":"string","description":"中文提示"}}}}}
+    User: {"type":"object","required":["id","email","nickname","avatarUrl","emailVerified"],"properties":{"id":{"type":"string","format":"uuid"},"email":{"type":"string"},"nickname":{"type":"string"},"avatarUrl":{"type":"string","nullable":true},"emailVerified":{"type":"boolean"}}}
+    AuthResult: {"type":"object","required":["user"],"properties":{"user":{"$ref":"#/components/schemas/User"},"token":{"type":"string"}}}
+    Success: {"type":"object","required":["message"],"properties":{"message":{"type":"string"}}}
+    CSRF: {"type":"object","required":["token"],"properties":{"token":{"type":"string"}}}
+    RegisterBody: {"type":"object","additionalProperties":false,"required":["email","password","nickname"],"properties":{"email":{"type":"string"},"password":{"type":"string","minLength":8,"maxLength":1024},"nickname":{"type":"string","minLength":1,"maxLength":100},"tokenDelivery":{"type":"string","enum":["cookie","bearer"],"default":"cookie"}}}
+    LoginBody: {"type":"object","additionalProperties":false,"required":["email","password"],"properties":{"email":{"type":"string"},"password":{"type":"string"},"tokenDelivery":{"type":"string","enum":["cookie","bearer"],"default":"cookie"}}}
+    VerifyEmailBody: {"type":"object","additionalProperties":false,"required":["token"],"properties":{"token":{"type":"string"}}}
+    ForgotPasswordBody: {"type":"object","additionalProperties":false,"required":["email"],"properties":{"email":{"type":"string"}}}
+    ResetPasswordBody: {"type":"object","additionalProperties":false,"required":["token","newPassword"],"properties":{"token":{"type":"string"},"newPassword":{"type":"string","minLength":8,"maxLength":1024}}}
+    ChangePasswordBody: {"type":"object","additionalProperties":false,"required":["oldPassword","newPassword"],"properties":{"oldPassword":{"type":"string"},"newPassword":{"type":"string","minLength":8,"maxLength":1024}}}
+    UpdateMeBody: {"type":"object","additionalProperties":false,"required":[],"properties":{"nickname":{"type":"string","minLength":1,"maxLength":100},"avatarUrl":{"type":"string","nullable":true,"maxLength":2048}}}

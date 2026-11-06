@@ -3,6 +3,13 @@
 前置：M0.1 骨架已完成。先阅读 `spec.md` 第 1 节、第 7.2/7.3 节，`docs/decisions.md` D2/D7/D8，以及现有 `api/`、`openapi/openapi.yaml` 结构，沿用其约定（strict server、sqlc、goose embed、slog）。
 本任务只做**后端**（含 OpenAPI 契约与 `make gen` 后的前端类型更新），不做前端页面。
 
+
+## 0. 前置：修复本地开发数据库连通性
+worker 是 Rootless Docker，主机无法直连容器 IP，目前集成测试只能 `docker run golang` 进 compose 网络执行，太绕。改为：
+- 新增 `docker-compose.dev.yml` 覆盖文件：postgres 映射 `127.0.0.1:${DEV_DB_PORT:-55432}:5432`（只绑回环，生产 compose 不变）；mailpit 也放在此文件或 dev profile 中均可，二选一并在 README 说明。
+- `make dev-db` 用覆盖文件只起 postgres；新增 `make test-integration`：自动以 `TEST_DATABASE_URL=postgres://...@127.0.0.1:55432/waypoint_test` 运行 `go test -race -count=1 ./...`（测试库不存在则自动创建，与开发库分离）。
+- README 开发章节相应简化，删掉查询容器 IP 的说明。
+
 ## 数据表（goose 新迁移）
 - `users`：id uuid、email（citext 或小写归一化后唯一）、password_hash、nickname、avatar_url null、email_verified_at null、created_at、updated_at。
 - `sessions`：id、user_id、token_hash（sha256，唯一索引）、created_at、last_seen_at、expires_at、user_agent、ip。数据库**只存哈希**。
@@ -48,7 +55,7 @@
 - 集成测试（真实 PostgreSQL，TEST_DATABASE_URL）覆盖：注册→登录→/me→注销后 401；Cookie 写请求缺 CSRF 头被拒、Bearer 写请求无需 CSRF；滚动续期；邮箱验证令牌一次性与过期；找回密码对不存在邮箱响应相同、重置后旧会话全部失效；修改密码保留当前会话；连续失败锁定；限流 429。邮件用测试 Mailer 捕获内容，断言链接以 PUBLIC_BASE_URL 开头且与请求 Host 无关。
 
 ## 验收（你必须全部跑通）
-1. `make gen` 后无多余差异；`go vet ./...`、`go test ./...`（含集成测试）通过；前端 `npm run lint && npm run build` 仍通过。
+1. `make gen` 后无多余差异；`go vet ./...`、`make test-integration` 通过（输出中集成测试为 PASS 而非 SKIP）；前端 `npm run lint && npm run build` 仍通过。
 2. `docker compose --profile dev up -d --build` 后用 curl 走一遍：取 CSRF → 注册 → 在 mailpit API（`http://localhost:8025/api/v1/messages`）里看到验证邮件且链接以 PUBLIC_BASE_URL 开头 → 验证邮箱 → /me 显示 emailVerified=true → 注销。
 3. 结束后 `docker compose --profile dev down`（不加 -v）。不要 `docker system prune`，不要动其它项目的容器镜像。
 

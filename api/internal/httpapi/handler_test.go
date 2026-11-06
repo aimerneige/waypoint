@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"waypoint/internal/config"
 	"waypoint/internal/db"
 	"waypoint/migrations"
 )
@@ -22,6 +23,8 @@ func TestPostgresReadiness(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer pool.Close()
+	handler, closeMailer := New(pool, config.Config{CookieSecure: true}, LogMailer{})
+	defer closeMailer()
 	for range 2 {
 		if err := migrations.Up(ctx, pool); err != nil {
 			t.Fatal(err)
@@ -33,14 +36,14 @@ func TestPostgresReadiness(t *testing.T) {
 	}
 	for _, path := range []string{"/api/healthz", "/api/readyz"} {
 		r := httptest.NewRecorder()
-		New(pool).ServeHTTP(r, httptest.NewRequest("GET", path, nil))
+		handler.ServeHTTP(r, httptest.NewRequest("GET", path, nil))
 		if r.Code != 200 || r.Body.String() != "{\"status\":\"ok\"}\n" {
 			t.Fatalf("%s: %d %s", path, r.Code, r.Body)
 		}
 	}
 	pool.Close()
 	r := httptest.NewRecorder()
-	New(pool).ServeHTTP(r, httptest.NewRequest("GET", "/api/readyz", nil))
+	handler.ServeHTTP(r, httptest.NewRequest("GET", "/api/readyz", nil))
 	if r.Code != 503 {
 		t.Fatalf("expected unavailable, got %d", r.Code)
 	}
