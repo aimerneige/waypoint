@@ -1,0 +1,21 @@
+{$WAYPOINT_DOMAIN} {
+  request_body {
+    max_size {$CADDY_MAX_BODY_SIZE:33MB}
+  }
+  handle /api/* {
+    reverse_proxy api:8080 {
+      flush_interval -1
+    }
+  }
+  handle {
+    root * /srv
+    route {
+      @assets path /assets/*
+      header @assets Cache-Control "public, max-age=31536000, immutable"
+      try_files {path} /index.html
+      @shell path /index.html /sw.js /registerSW.js /manifest.webmanifest
+      header @shell Cache-Control "no-cache, no-store, must-revalidate"
+      file_server
+    }
+  }
+}

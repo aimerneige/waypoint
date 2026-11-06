@@ -1,0 +1,39 @@
+openapi: 3.0.3
+info:
+  title: Waypoint API
+  version: 0.1.0
+paths:
+  /api/healthz:
+    get:
+      operationId: healthz
+      responses:
+        '200':
+          description: Process is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+  /api/readyz:
+    get:
+      operationId: readyz
+      responses:
+        '200':
+          description: Database is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+        '503':
+          description: Database is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+components:
+  schemas:
+    Status:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
