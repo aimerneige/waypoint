@@ -23,10 +23,65 @@ type EmailToken struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type EntityState struct {
+	TripID          pgtype.UUID
+	Entity          string
+	EntityID        pgtype.UUID
+	Fields          []byte
+	FieldSeq        []byte
+	FieldActor      []byte
+	CreatedBy       pgtype.UUID
+	CreatedSeq      int64
+	UpdatedSeq      int64
+	Deleted         bool
+	DeletedBy       pgtype.UUID
+	DeletedSeq      pgtype.Int8
+	VisibleToUserID pgtype.UUID
+}
+
+type Invite struct {
+	ID        pgtype.UUID
+	TripID    pgtype.UUID
+	Token     string
+	CreatedBy pgtype.UUID
+	ExpiresAt pgtype.Timestamptz
+	RevokedAt pgtype.Timestamptz
+	CreatedAt pgtype.Timestamptz
+}
+
 type LoginFailure struct {
 	Email       string
 	Failures    int32
 	LockedUntil pgtype.Timestamptz
+}
+
+type Op struct {
+	TripID          pgtype.UUID
+	ServerSeq       int64
+	OpID            pgtype.UUID
+	ActorUserID     pgtype.UUID
+	SchemaVersion   int32
+	Entity          string
+	EntityID        pgtype.UUID
+	Kind            string
+	Fields          []byte
+	BaseSeq         []byte
+	Changes         []byte
+	Conflicts       []byte
+	EntityDeleted   bool
+	ClientTime      pgtype.Timestamptz
+	ServerTime      pgtype.Timestamptz
+	Origin          string
+	VisibleToUserID pgtype.UUID
+}
+
+type RejectedOp struct {
+	OpID        pgtype.UUID
+	TripID      pgtype.UUID
+	ActorUserID pgtype.UUID
+	Code        string
+	Message     string
+	CreatedAt   pgtype.Timestamptz
 }
 
 type Session struct {
@@ -38,6 +93,26 @@ type Session struct {
 	ExpiresAt  pgtype.Timestamptz
 	UserAgent  string
 	Ip         string
+}
+
+type Trip struct {
+	ID           pgtype.UUID
+	Name         string
+	StartDate    pgtype.Date
+	EndDate      pgtype.Date
+	Timezone     string
+	BaseCurrency string
+	OwnerID      pgtype.UUID
+	LastSeq      int64
+	CreatedAt    pgtype.Timestamptz
+}
+
+type TripMember struct {
+	TripID   pgtype.UUID
+	UserID   pgtype.UUID
+	Role     string
+	JoinedAt pgtype.Timestamptz
+	LeftAt   pgtype.Timestamptz
 }
 
 type User struct {

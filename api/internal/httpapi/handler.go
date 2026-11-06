@@ -18,6 +18,7 @@ type Server struct {
 	config                config.Config
 	mail                  *mailQueue
 	ipLimit, accountLimit *limiter
+	hub                   *eventHub
 }
 
 func New(pool *pgxpool.Pool, c config.Config, m Mailer) (http.Handler, func()) {
@@ -29,12 +30,16 @@ func New(pool *pgxpool.Pool, c config.Config, m Mailer) (http.Handler, func()) {
 		}
 	}
 	q := newMailQueue(m)
-	s := &Server{pool: pool, queries: db.New(pool), config: c, mail: q, ipLimit: newLimiter(60, time.Minute), accountLimit: newLimiter(20, time.Minute)}
+	s := &Server{pool: pool, queries: db.New(pool), config: c, mail: q, ipLimit: newLimiter(60, time.Minute), accountLimit: newLimiter(20, time.Minute), hub: newEventHub()}
 	return newHandler(s), q.close
 }
 func newHandler(s *Server) http.Handler {
 	strict := NewStrictHandlerWithOptions(s, []StrictMiddlewareFunc{requireLogin}, StrictHTTPServerOptions{
-		RequestErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, _ error) {
+		RequestErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
+			if isBodyTooLarge(err) {
+				writeError(w, fail(413, "payload_too_large", "请求体过大"))
+				return
+			}
 			writeError(w, fail(400, "invalid_request", "请求格式不正确"))
 		},
 		ResponseErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) { writeError(w, err) },

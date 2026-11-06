@@ -1,10 +1,12 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -145,7 +147,20 @@ func (s *Server) middleware(next http.Handler) http.Handler {
 				return
 			}
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, 16*1024)
+		limit := s.bodyLimit(r)
+		r.Body = http.MaxBytesReader(w, r.Body, limit)
+		if r.Body != nil {
+			data, err := io.ReadAll(r.Body)
+			if err != nil {
+				if isBodyTooLarge(err) {
+					writeError(w, fail(413, "payload_too_large", "请求体过大"))
+				} else {
+					writeError(w, fail(400, "invalid_request", "请求体读取失败"))
+				}
+				return
+			}
+			r.Body = io.NopCloser(bytes.NewReader(data))
+		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), requestKey{}, st)))
 	})
 }
@@ -156,7 +171,29 @@ func requireLogin(next StrictHandlerFunc, operation string) StrictHandlerFunc {
 			if !state(ctx).authenticated {
 				return nil, fail(401, "unauthorized", "请先登录")
 			}
+		default:
+			if operation != "Healthz" && operation != "Readyz" && operation != "GetCSRF" && operation != "Register" && operation != "Login" && operation != "VerifyEmail" && operation != "ForgotPassword" && operation != "ResetPassword" && operation != "PreviewInvite" && !state(ctx).authenticated {
+				return nil, fail(401, "unauthorized", "请先登录")
+			}
 		}
 		return next(ctx, w, r, request)
 	}
+}
+
+func isBodyTooLarge(err error) bool { var e *http.MaxBytesError; return errors.As(err, &e) }
+func (s *Server) bodyLimit(r *http.Request) int64 {
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if r.Method == http.MethodPost && len(parts) == 4 && parts[0] == "api" && parts[1] == "trips" {
+		if parts[3] == "ops" {
+			return 2 * 1024 * 1024
+		}
+		if parts[3] == "uploads" {
+			mb := s.config.MaxUploadMB
+			if mb <= 0 {
+				mb = 32
+			}
+			return int64(mb) * 1024 * 1024
+		}
+	}
+	return 16 * 1024
 }

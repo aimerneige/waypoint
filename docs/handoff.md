@@ -2,23 +2,21 @@
 
 > 更新于 2026-11-07。阅读顺序：本文件 → `spec.md`（唯一开发与验收依据）→ `docs/decisions.md`（决策理由）→ `target.md`（需求概览）。
 
-## 当前状态
-- 阶段：**需求与架构设计已完成，尚未开始写代码。**
-- 已提交：`target.md`、`spec.md`（commit 5edb884），以及本目录文档。
-- 仓库无远程地址，未推送。
-- spec.md 第 9 节"待定事项"已清空，所有架构决策已确定；主色具体色值在 M0 定稿。
+## 当前状态（2026-11-07）
+- 用户已授权：架构师（Claude）自主推进 M0–M5，验收通过即继续，遇阻碍才停；**M6 不做**（无移动设备）。
+- M0 拆为 6 个子任务，任务书在 `docs/tasks/`，按顺序委派 codex：
+  - [x] M0.1 骨架 + compose + OpenAPI 生成链路
+  - [x] M0.2 后端账号与鉴权
+  - [x] M0.3 后端同步协议 + 行程/成员/邀请 + ItineraryItem（产出 `docs/sync-protocol.md`）
+  - [ ] M0.4 前端 UI 基础 + 账号页面 + Playwright（主色在此定稿 → D13）
+  - [ ] M0.5 前端本地库 + 同步层 + 行程/成员/邀请页面
+  - [ ] M0.6 ItineraryItem 列表 + 冲突/拒绝/修改记录界面 + 退出清理 + M0 端到端验收
+- 验收流程：读 codex 报告 → 自己在 worker 上重跑 lint/test/`make test-integration`/compose 冒烟 → 审关键代码 → 提交。
 
-## 下一步：M0（等待用户明确下达开发指令后才开始）
-M0 范围（详见 spec 第 8 节）：
-- monorepo 骨架：前端（Vite + React + TS + shadcn/ui + Tailwind + Dexie + vite-plugin-pwa）、后端（Go + chi + pgx/sqlc + goose）、OpenAPI 契约
-- Dockerfile（多阶段）+ docker-compose（web/Caddy、api、postgres、backup）+ `.env.example`
-- 注册登录（邮箱 + SMTP 验证与找回密码）、会话（Cookie + 预留 Bearer）、CSRF、限流
-- 行程创建、成员与角色、邀请链接
-- 本地数据库、op 生成与发送队列、推送 / 拉取、SSE 通知、冲突检测与提示、拒绝回滚、修改记录基础
-- 通用 UI 基础：设计令牌（淡蓝主色、亮 / 暗主题）、底部导航、响应式弹层（Drawer / Dialog）、返回手势关闭弹层、Sonner 提示条
-- 验收：两台设备离线各自修改后恢复网络数据一致，冲突有提示，被拒绝的 op 正确回滚
-
-建议 M0 拆成多个子任务分别委派（例如：骨架 + compose → 鉴权 → 同步协议后端 → 同步层前端 → UI 基础），每步验收后再进行下一步。
+## 环境注意
+- worker 是 Rootless Docker + pasta：**只有绑定 0.0.0.0 的发布端口能从主机访问**，127.0.0.1 绑定无效。worker 在局域网且防火墙放行高位端口，所以数据库不对外；集成测试在 compose 网络内的 `gotest` 容器中跑（`make test-integration`）；mailpit 用 `MAILPIT_BIND=0.0.0.0`（已写入 worker 的 `.env`）。
+- worker 的 `~/.codex/AGENTS.md` 要求高风险改动先等确认：委派提示必须写明"任务书即已确认方案，无需等待确认"。
+- 磁盘余量约 29G，禁止 `docker system prune`。
 
 ## 工作方式（来自项目 CLAUDE.md 与用户偏好）
 - 本机（东京节点，3 核 2G）只做架构与任务拆解；**禁止在本机克隆仓库、安装依赖、编译测试**。

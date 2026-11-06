@@ -205,6 +205,216 @@ export interface paths {
         patch: operations["updateMe"];
         trace?: never;
     };
+    "/api/trips": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listTrips"];
+        put?: never;
+        post: operations["createTrip"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/trips/{tripId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getTrip"];
+        put?: never;
+        post?: never;
+        delete: operations["deleteTrip"];
+        options?: never;
+        head?: never;
+        patch: operations["patchTrip"];
+        trace?: never;
+    };
+    "/api/trips/{tripId}/transfer-owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["transferOwner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/trips/{tripId}/members/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["removeMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/trips/{tripId}/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["leaveTrip"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/trips/{tripId}/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listInvites"];
+        put?: never;
+        post: operations["createInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/trips/{tripId}/invites/{inviteId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revokeInvite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/invites/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["previewInvite"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/invites/{token}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["acceptInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/trips/{tripId}/ops": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["pullOps"];
+        put?: never;
+        /** @description 最多 200 条、2 MiB；逐条事务。混合批次返回逐条结果；整批版本拒绝返回 426。版本拒绝不持久化，升级后使用原 opId 重试。 */
+        post: operations["pushOps"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/trips/{tripId}/snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getSnapshot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/trips/{tripId}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/trips/{tripId}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description 立即发送 seq；新操作后发送 seq；25 秒注释心跳。通知及心跳时重新校验会话，失效发送 unauthorized 并关闭；revoked / trip_deleted 后关闭。 */
+        get: operations["tripEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -273,6 +483,188 @@ export interface components {
         UpdateMeBody: {
             nickname?: string;
             avatarUrl?: string | null;
+        };
+        TripBody: {
+            name: string;
+            startDate: string;
+            endDate: string;
+            timezone: string;
+        };
+        TripPatch: {
+            name?: string;
+            startDate?: string;
+            endDate?: string;
+            timezone?: string;
+        };
+        Trip: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            startDate: string;
+            endDate: string;
+            timezone: string;
+            baseCurrency: string;
+            /** Format: uuid */
+            ownerId: string;
+            /** Format: int64 */
+            latestSeq: number;
+            /** Format: date-time */
+            createdAt: string;
+            role: string;
+        };
+        Member: {
+            /** Format: uuid */
+            userId: string;
+            nickname: string;
+            avatarUrl: string | null;
+            role: string;
+            /** Format: date-time */
+            joinedAt: string;
+            /** Format: date-time */
+            leftAt: string | null;
+        };
+        InviteBody: {
+            expiresInHours?: number;
+        };
+        Invite: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tripId: string;
+            token: string;
+            /** Format: uuid */
+            createdBy: string;
+            /** Format: date-time */
+            expiresAt: string | null;
+            /** Format: date-time */
+            revokedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        InvitePreview: {
+            tripName: string;
+            ownerNickname: string;
+            valid: boolean;
+        };
+        TransferBody: {
+            /** Format: uuid */
+            userId: string;
+        };
+        ClientOp: {
+            /** Format: uuid */
+            opId: string;
+            /** Format: uuid */
+            tripId: string;
+            /** Format: uuid */
+            actorUserId: string;
+            schemaVersion: number;
+            entity: string;
+            /** Format: uuid */
+            entityId: string;
+            /** @enum {string} */
+            kind: "create" | "update" | "delete" | "restore";
+            fields: {
+                [key: string]: unknown;
+            };
+            baseSeq: {
+                [key: string]: number;
+            };
+            /** Format: date-time */
+            clientTime: string;
+        };
+        Change: {
+            old: unknown;
+            new: unknown;
+        };
+        Conflict: {
+            field: string;
+            overwrittenValue: unknown;
+            /** Format: int64 */
+            overwrittenSeq: number;
+            /** Format: uuid */
+            overwrittenActor: string;
+        };
+        OpResult: {
+            /** Format: uuid */
+            opId: string;
+            /** @enum {string} */
+            status: "accepted" | "duplicate" | "rejected";
+            /** Format: int64 */
+            serverSeq?: number;
+            conflicts?: components["schemas"]["Conflict"][];
+            entityDeleted?: boolean;
+            /** Format: uuid */
+            deletedBy?: string;
+            error?: {
+                code: string;
+                message: string;
+            };
+        };
+        FullOp: components["schemas"]["ClientOp"] & {
+            /** Format: int64 */
+            serverSeq: number;
+            /** Format: date-time */
+            serverTime: string;
+            changes: {
+                [key: string]: components["schemas"]["Change"];
+            };
+            conflicts: components["schemas"]["Conflict"][];
+            entityDeleted: boolean;
+            /** @enum {string} */
+            origin: "client" | "server";
+        };
+        EntityState: {
+            entity: string;
+            /** Format: uuid */
+            entityId: string;
+            fields: {
+                [key: string]: unknown;
+            };
+            fieldSeq: {
+                [key: string]: number;
+            };
+            fieldActor: {
+                [key: string]: string;
+            };
+            /** Format: uuid */
+            createdBy: string;
+            /** Format: int64 */
+            createdSeq: number;
+            /** Format: int64 */
+            updatedSeq: number;
+            deleted: boolean;
+            /** Format: uuid */
+            deletedBy: string | null;
+            /** Format: int64 */
+            deletedSeq: number | null;
+        };
+        PushBody: {
+            ops: components["schemas"]["ClientOp"][];
+        };
+        PushResult: {
+            results: components["schemas"]["OpResult"][];
+        };
+        PullResult: {
+            ops: components["schemas"]["FullOp"][];
+            /** Format: int64 */
+            latestSeq: number;
+            hasMore: boolean;
+        };
+        Snapshot: {
+            /** Format: int64 */
+            seq: number;
+            trip: components["schemas"]["Trip"];
+            members: components["schemas"]["Member"][];
+            entities: components["schemas"]["EntityState"][];
+        };
+        TripList: {
+            trips: components["schemas"]["Trip"][];
+        };
+        InviteList: {
+            invites: components["schemas"]["Invite"][];
+        };
+        History: {
+            ops: components["schemas"]["FullOp"][];
         };
     };
     responses: {
@@ -689,6 +1081,448 @@ export interface operations {
             409: components["responses"]["Error"];
             429: components["responses"]["Error"];
             500: components["responses"]["Error"];
+            default: components["responses"]["Error"];
+        };
+    };
+    listTrips: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TripList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createTrip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TripBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Trip"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getTrip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tripId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Trip"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    deleteTrip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tripId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Success"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    patchTrip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tripId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TripPatch"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Trip"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    transferOwner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tripId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Success"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    removeMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tripId: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Success"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    leaveTrip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tripId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Success"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listInvites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tripId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tripId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invite"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    revokeInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tripId: string;
+                inviteId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Success"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    previewInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitePreview"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    acceptInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Trip"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    pullOps: {
+        parameters: {
+            query?: {
+                after?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                tripId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PullResult"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    pushOps: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tripId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushResult"];
+                };
+            };
+            413: components["responses"]["Error"];
+            426: components["responses"]["Error"];
+            default: components["responses"]["Error"];
+        };
+    };
+    getSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tripId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Snapshot"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getHistory: {
+        parameters: {
+            query?: {
+                entity?: string;
+                entityId?: string;
+                before?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                tripId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["History"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    tripEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tripId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
             default: components["responses"]["Error"];
         };
     };

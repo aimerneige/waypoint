@@ -266,8 +266,15 @@ func (s *Server) UpdateMe(ctx context.Context, r UpdateMeRequestObject) (UpdateM
 	if err != nil {
 		return nil, err
 	}
+	trips, err := s.profileOps(ctx, q, u)
+	if err != nil {
+		return nil, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
+	}
+	for _, id := range trips {
+		s.hub.notify(id)
 	}
 	return UpdateMe200JSONResponse{Body: publicUser(u)}, nil
 }

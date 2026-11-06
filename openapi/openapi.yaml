@@ -317,6 +317,528 @@ paths:
         '429': {$ref: '#/components/responses/Error'}
         '500': {$ref: '#/components/responses/Error'}
         default: {$ref: '#/components/responses/Error'}
+  /api/trips:
+    post:
+      operationId: "createTrip"
+      parameters: []
+      responses:
+        "200":
+          description: "成功"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Trip"
+        default:
+          "$ref": "#/components/responses/Error"
+      security:
+        -
+          cookieAuth: []
+        -
+          bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              "$ref": "#/components/schemas/TripBody"
+    get:
+      operationId: "listTrips"
+      parameters: []
+      responses:
+        "200":
+          description: "成功"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/TripList"
+        default:
+          "$ref": "#/components/responses/Error"
+      security:
+        -
+          cookieAuth: []
+        -
+          bearerAuth: []
+  /api/trips/{tripId}:
+    get:
+      operationId: "getTrip"
+      parameters:
+        -
+          name: "tripId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+      responses:
+        "200":
+          description: "成功"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Trip"
+        default:
+          "$ref": "#/components/responses/Error"
+      security:
+        -
+          cookieAuth: []
+        -
+          bearerAuth: []
+    patch:
+      operationId: "patchTrip"
+      parameters:
+        -
+          name: "tripId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+      responses:
+        "200":
+          description: "成功"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Trip"
+        default:
+          "$ref": "#/components/responses/Error"
+      security:
+        -
+          cookieAuth: []
+        -
+          bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              "$ref": "#/components/schemas/TripPatch"
+    delete:
+      operationId: "deleteTrip"
+      parameters:
+        -
+          name: "tripId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+      responses:
+        "200":
+          description: "成功"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Success"
+        default:
+          "$ref": "#/components/responses/Error"
+      security:
+        -
+          cookieAuth: []
+        -
+          bearerAuth: []
+  /api/trips/{tripId}/transfer-owner:
+    post:
+      operationId: "transferOwner"
+      parameters:
+        -
+          name: "tripId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+      responses:
+        "200":
+          description: "成功"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Success"
+        default:
+          "$ref": "#/components/responses/Error"
+      security:
+        -
+          cookieAuth: []
+        -
+          bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              "$ref": "#/components/schemas/TransferBody"
+  /api/trips/{tripId}/members/{userId}:
+    delete:
+      operationId: "removeMember"
+      parameters:
+        -
+          name: "tripId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+        -
+          name: "userId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+      responses:
+        "200":
+          description: "成功"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Success"
+        default:
+          "$ref": "#/components/responses/Error"
+      security:
+        -
+          cookieAuth: []
+        -
+          bearerAuth: []
+  /api/trips/{tripId}/leave:
+    post:
+      operationId: "leaveTrip"
+      parameters:
+        -
+          name: "tripId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+      responses:
+        "200":
+          description: "成功"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Success"
+        default:
+          "$ref": "#/components/responses/Error"
+      security:
+        -
+          cookieAuth: []
+        -
+          bearerAuth: []
+  /api/trips/{tripId}/invites:
+    post:
+      operationId: "createInvite"
+      parameters:
+        -
+          name: "tripId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+      responses:
+        "200":
+          description: "成功"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Invite"
+        default:
+          "$ref": "#/components/responses/Error"
+      security:
+        -
+          cookieAuth: []
+        -
+          bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              "$ref": "#/components/schemas/InviteBody"
+    get:
+      operationId: "listInvites"
+      parameters:
+        -
+          name: "tripId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+      responses:
+        "200":
+          description: "成功"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/InviteList"
+        default:
+          "$ref": "#/components/responses/Error"
+      security:
+        -
+          cookieAuth: []
+        -
+          bearerAuth: []
+  /api/trips/{tripId}/invites/{inviteId}:
+    delete:
+      operationId: "revokeInvite"
+      parameters:
+        -
+          name: "tripId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+        -
+          name: "inviteId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+      responses:
+        "200":
+          description: "成功"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Success"
+        default:
+          "$ref": "#/components/responses/Error"
+      security:
+        -
+          cookieAuth: []
+        -
+          bearerAuth: []
+  /api/invites/{token}:
+    get:
+      operationId: "previewInvite"
+      parameters:
+        -
+          name: "token"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "成功"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/InvitePreview"
+        default:
+          "$ref": "#/components/responses/Error"
+  /api/invites/{token}/accept:
+    post:
+      operationId: "acceptInvite"
+      parameters:
+        -
+          name: "token"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "成功"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Trip"
+        default:
+          "$ref": "#/components/responses/Error"
+      security:
+        -
+          cookieAuth: []
+        -
+          bearerAuth: []
+  /api/trips/{tripId}/ops:
+    post:
+      operationId: "pushOps"
+      parameters:
+        -
+          name: "tripId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+      responses:
+        "200":
+          description: "成功"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/PushResult"
+        "413":
+          "$ref": "#/components/responses/Error"
+        "426":
+          "$ref": "#/components/responses/Error"
+        default:
+          "$ref": "#/components/responses/Error"
+      security:
+        -
+          cookieAuth: []
+        -
+          bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              "$ref": "#/components/schemas/PushBody"
+      description: "最多 200 条、2 MiB；逐条事务。混合批次返回逐条结果；整批版本拒绝返回 426。版本拒绝不持久化，升级后使用原 opId 重试。"
+    get:
+      operationId: "pullOps"
+      parameters:
+        -
+          name: "tripId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+        -
+          name: "after"
+          in: "query"
+          required: false
+          schema:
+            type: "integer"
+            format: "int64"
+            minimum: 0
+            default: 0
+        -
+          name: "limit"
+          in: "query"
+          required: false
+          schema:
+            type: "integer"
+            minimum: 1
+            maximum: 500
+            default: 500
+      responses:
+        "200":
+          description: "成功"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/PullResult"
+        default:
+          "$ref": "#/components/responses/Error"
+      security:
+        -
+          cookieAuth: []
+        -
+          bearerAuth: []
+  /api/trips/{tripId}/snapshot:
+    get:
+      operationId: "getSnapshot"
+      parameters:
+        -
+          name: "tripId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+      responses:
+        "200":
+          description: "成功"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Snapshot"
+        default:
+          "$ref": "#/components/responses/Error"
+      security:
+        -
+          cookieAuth: []
+        -
+          bearerAuth: []
+  /api/trips/{tripId}/history:
+    get:
+      operationId: "getHistory"
+      parameters:
+        -
+          name: "tripId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+        -
+          name: "entity"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+        -
+          name: "entityId"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+            format: "uuid"
+        -
+          name: "before"
+          in: "query"
+          required: false
+          schema:
+            type: "integer"
+            format: "int64"
+            minimum: 1
+        -
+          name: "limit"
+          in: "query"
+          required: false
+          schema:
+            type: "integer"
+            minimum: 1
+            maximum: 500
+            default: 500
+      responses:
+        "200":
+          description: "成功"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/History"
+        default:
+          "$ref": "#/components/responses/Error"
+      security:
+        -
+          cookieAuth: []
+        -
+          bearerAuth: []
+  /api/trips/{tripId}/events:
+    get:
+      operationId: "tripEvents"
+      parameters:
+        -
+          name: "tripId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+      responses:
+        "200":
+          description: "成功"
+          content:
+            "text/event-stream":
+              schema:
+                type: "string"
+        default:
+          "$ref": "#/components/responses/Error"
+      security:
+        -
+          cookieAuth: []
+        -
+          bearerAuth: []
+      description: "立即发送 seq；新操作后发送 seq；25 秒注释心跳。通知及心跳时重新校验会话，失效发送 unauthorized 并关闭；revoked / trip_deleted 后关闭。"
 components:
   securitySchemes:
     cookieAuth: {type: apiKey, in: cookie, name: wp_session}
@@ -345,3 +867,24 @@ components:
     ResetPasswordBody: {"type":"object","additionalProperties":false,"required":["token","newPassword"],"properties":{"token":{"type":"string"},"newPassword":{"type":"string","minLength":8,"maxLength":1024}}}
     ChangePasswordBody: {"type":"object","additionalProperties":false,"required":["oldPassword","newPassword"],"properties":{"oldPassword":{"type":"string"},"newPassword":{"type":"string","minLength":8,"maxLength":1024}}}
     UpdateMeBody: {"type":"object","additionalProperties":false,"required":[],"properties":{"nickname":{"type":"string","minLength":1,"maxLength":100},"avatarUrl":{"type":"string","nullable":true,"maxLength":2048}}}
+    TripBody: {"type":"object","properties":{"name":{"type":"string"},"startDate":{"type":"string"},"endDate":{"type":"string"},"timezone":{"type":"string"}},"required":["name","startDate","endDate","timezone"]}
+    TripPatch: {"type":"object","properties":{"name":{"type":"string"},"startDate":{"type":"string"},"endDate":{"type":"string"},"timezone":{"type":"string"}},"required":[]}
+    Trip: {"type":"object","properties":{"id":{"type":"string","format":"uuid"},"name":{"type":"string"},"startDate":{"type":"string"},"endDate":{"type":"string"},"timezone":{"type":"string"},"baseCurrency":{"type":"string"},"ownerId":{"type":"string","format":"uuid"},"latestSeq":{"type":"integer","format":"int64"},"createdAt":{"type":"string","format":"date-time"},"role":{"type":"string"}},"required":["id","name","startDate","endDate","timezone","baseCurrency","ownerId","latestSeq","createdAt","role"]}
+    Member: {"type":"object","properties":{"userId":{"type":"string","format":"uuid"},"nickname":{"type":"string"},"avatarUrl":{"type":"string","nullable":true},"role":{"type":"string"},"joinedAt":{"type":"string","format":"date-time"},"leftAt":{"type":"string","format":"date-time","nullable":true}},"required":["userId","nickname","avatarUrl","role","joinedAt","leftAt"]}
+    InviteBody: {"type":"object","properties":{"expiresInHours":{"type":"integer","minimum":1,"maximum":8760}},"required":[]}
+    Invite: {"type":"object","properties":{"id":{"type":"string","format":"uuid"},"tripId":{"type":"string","format":"uuid"},"token":{"type":"string"},"createdBy":{"type":"string","format":"uuid"},"expiresAt":{"type":"string","format":"date-time","nullable":true},"revokedAt":{"type":"string","format":"date-time","nullable":true},"createdAt":{"type":"string","format":"date-time"}},"required":["id","tripId","token","createdBy","expiresAt","revokedAt","createdAt"]}
+    InvitePreview: {"type":"object","properties":{"tripName":{"type":"string"},"ownerNickname":{"type":"string"},"valid":{"type":"boolean"}},"required":["tripName","ownerNickname","valid"]}
+    TransferBody: {"type":"object","properties":{"userId":{"type":"string","format":"uuid"}},"required":["userId"]}
+    ClientOp: {"type":"object","properties":{"opId":{"type":"string","format":"uuid"},"tripId":{"type":"string","format":"uuid"},"actorUserId":{"type":"string","format":"uuid"},"schemaVersion":{"type":"integer"},"entity":{"type":"string"},"entityId":{"type":"string","format":"uuid"},"kind":{"type":"string","enum":["create","update","delete","restore"]},"fields":{"type":"object","additionalProperties":true},"baseSeq":{"type":"object","additionalProperties":{"type":"integer","format":"int64"}},"clientTime":{"type":"string","format":"date-time"}},"required":["opId","tripId","actorUserId","schemaVersion","entity","entityId","kind","fields","baseSeq","clientTime"]}
+    Change: {"type":"object","properties":{"old":{"nullable":true},"new":{"nullable":true}},"required":["old","new"]}
+    Conflict: {"type":"object","properties":{"field":{"type":"string"},"overwrittenValue":{"nullable":true},"overwrittenSeq":{"type":"integer","format":"int64"},"overwrittenActor":{"type":"string","format":"uuid"}},"required":["field","overwrittenValue","overwrittenSeq","overwrittenActor"]}
+    OpResult: {"type":"object","properties":{"opId":{"type":"string","format":"uuid"},"status":{"type":"string","enum":["accepted","duplicate","rejected"]},"serverSeq":{"type":"integer","format":"int64"},"conflicts":{"type":"array","items":{"$ref":"#/components/schemas/Conflict"}},"entityDeleted":{"type":"boolean"},"deletedBy":{"type":"string","format":"uuid"},"error":{"type":"object","properties":{"code":{"type":"string"},"message":{"type":"string"}},"required":["code","message"]}},"required":["opId","status"]}
+    FullOp: {"allOf":[{"$ref":"#/components/schemas/ClientOp"},{"type":"object","properties":{"serverSeq":{"type":"integer","format":"int64"},"serverTime":{"type":"string","format":"date-time"},"changes":{"type":"object","additionalProperties":{"$ref":"#/components/schemas/Change"}},"conflicts":{"type":"array","items":{"$ref":"#/components/schemas/Conflict"}},"entityDeleted":{"type":"boolean"},"origin":{"type":"string","enum":["client","server"],"x-enum-varnames":["OriginClient","OriginServer"]}},"required":["serverSeq","serverTime","changes","conflicts","entityDeleted","origin"]}]}
+    EntityState: {"type":"object","properties":{"entity":{"type":"string"},"entityId":{"type":"string","format":"uuid"},"fields":{"type":"object","additionalProperties":true},"fieldSeq":{"type":"object","additionalProperties":{"type":"integer","format":"int64"}},"fieldActor":{"type":"object","additionalProperties":{"type":"string","format":"uuid"}},"createdBy":{"type":"string","format":"uuid"},"createdSeq":{"type":"integer","format":"int64"},"updatedSeq":{"type":"integer","format":"int64"},"deleted":{"type":"boolean"},"deletedBy":{"type":"string","format":"uuid","nullable":true},"deletedSeq":{"type":"integer","format":"int64","nullable":true}},"required":["entity","entityId","fields","fieldSeq","fieldActor","createdBy","createdSeq","updatedSeq","deleted","deletedBy","deletedSeq"]}
+    PushBody: {"type":"object","properties":{"ops":{"type":"array","items":{"$ref":"#/components/schemas/ClientOp"},"maxItems":200}},"required":["ops"]}
+    PushResult: {"type":"object","properties":{"results":{"type":"array","items":{"$ref":"#/components/schemas/OpResult"}}},"required":["results"]}
+    PullResult: {"type":"object","properties":{"ops":{"type":"array","items":{"$ref":"#/components/schemas/FullOp"}},"latestSeq":{"type":"integer","format":"int64"},"hasMore":{"type":"boolean"}},"required":["ops","latestSeq","hasMore"]}
+    Snapshot: {"type":"object","properties":{"seq":{"type":"integer","format":"int64"},"trip":{"$ref":"#/components/schemas/Trip"},"members":{"type":"array","items":{"$ref":"#/components/schemas/Member"}},"entities":{"type":"array","items":{"$ref":"#/components/schemas/EntityState"}}},"required":["seq","trip","members","entities"]}
+    TripList: {"type":"object","properties":{"trips":{"type":"array","items":{"$ref":"#/components/schemas/Trip"}}},"required":["trips"]}
+    InviteList: {"type":"object","properties":{"invites":{"type":"array","items":{"$ref":"#/components/schemas/Invite"}}},"required":["invites"]}
+    History: {"type":"object","properties":{"ops":{"type":"array","items":{"$ref":"#/components/schemas/FullOp"}}},"required":["ops"]}
