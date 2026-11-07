@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -19,6 +21,8 @@ import (
 
 const CurrentSchemaVersion = 1
 const MinSupportedSchemaVersion = 1
+
+var sortOrderPattern = regexp.MustCompile(`^[0-9A-Za-z]{1,64}$`)
 
 type OpUpgrade func(ClientOp) (ClientOp, error)
 
@@ -71,12 +75,69 @@ var entities = map[string]EntityDef{
 	"trip": {Name: "trip", Readonly: true}, "member": {Name: "member", Readonly: true},
 	"itinerary_item": {Name: "itinerary_item", Fields: map[string]FieldDef{
 		"title": {Required: true, Validate: stringField(1, 200)}, "date": {Required: true, Validate: validDate}, "place": {Nullable: true, Validate: stringField(0, 200)},
+		"startTime": {Nullable: true, Validate: validTime}, "endTime": {Nullable: true, Validate: validTime},
+		"timezone": {Nullable: true, Validate: validZone}, "endTimezone": {Nullable: true, Validate: validZone},
+		"endDate": {Nullable: true, Validate: validDate}, "bookingInfo": {Nullable: true, Validate: stringField(0, 2000)},
+		"wishItemId": {Nullable: true, Validate: validUUID}, "voucherIds": {Nullable: true, Validate: validVouchers},
+		"sortOrder": {Nullable: true, Validate: func(v any) bool {
+			s, ok := v.(string)
+			return ok && sortOrderPattern.MatchString(s)
+		}},
 	}, Kinds: map[ClientOpKind]bool{ClientOpKindCreate: true, ClientOpKindUpdate: true, ClientOpKindDelete: true, ClientOpKindRestore: true}, Permission: func(role string, _ db.EntityState) error {
 		if role != "owner" && role != "member" {
 			return fail(403, "not_member", "您不是当前成员")
 		}
 		return nil
 	}},
+}
+
+func init() {
+	entities["wish_item"] = EntityDef{Name: "wish_item", Fields: map[string]FieldDef{
+		"title": {Required: true, Validate: stringField(1, 200)}, "note": {Nullable: true, Validate: stringField(0, 2000)},
+		"place": {Nullable: true, Validate: stringField(0, 200)}, "url": {Nullable: true, Validate: func(v any) bool {
+			if !stringField(0, 2000)(v) {
+				return false
+			}
+			u, err := url.Parse(v.(string))
+			return err == nil && u.Host != "" && (u.Scheme == "http" || u.Scheme == "https")
+		}},
+	}, Kinds: entities["itinerary_item"].Kinds, Permission: entities["itinerary_item"].Permission}
+}
+func validTime(v any) bool {
+	s, ok := v.(string)
+	if !ok {
+		return false
+	}
+	t, err := time.Parse("15:04", s)
+	return err == nil && t.Format("15:04") == s
+}
+func validZone(v any) bool {
+	s, ok := v.(string)
+	if !ok || s == "" || s == "Local" {
+		return false
+	}
+	_, err := time.LoadLocation(s)
+	return err == nil
+}
+func validUUID(v any) bool {
+	s, ok := v.(string)
+	if !ok {
+		return false
+	}
+	_, err := uuid.Parse(s)
+	return err == nil
+}
+func validVouchers(v any) bool {
+	a, ok := v.([]any)
+	if !ok || len(a) > 20 {
+		return false
+	}
+	for _, id := range a {
+		if !validUUID(id) {
+			return false
+		}
+	}
+	return true
 }
 
 func validateOp(op ClientOp) error {
@@ -300,6 +361,18 @@ func (s *Server) applyOp(ctx context.Context, q *db.Queries, op ClientOp, origin
 		}
 		if actors, err = decode[map[string]uuid.UUID](e.FieldActor); err != nil {
 			return OpResult{}, err
+		}
+	}
+	if op.Entity == "itinerary_item" && (op.Kind == ClientOpKindCreate || op.Kind == ClientOpKindUpdate) {
+		merged := make(map[string]any, len(fields)+len(op.Fields))
+		for k, v := range fields {
+			merged[k] = v
+		}
+		for k, v := range op.Fields {
+			merged[k] = v
+		}
+		if end, ok := merged["endDate"].(string); ok && end < merged["date"].(string) {
+			return OpResult{}, fail(400, "invalid_op", "endDate 不能早于 date")
 		}
 	}
 	seq, err := q.NextSeq(ctx, uid(op.TripId))

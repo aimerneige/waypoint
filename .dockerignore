@@ -2,4 +2,8 @@
 .env
 web/node_modules
 web/dist
+web/e2e/screenshots
+web/test-results
+web/playwright-report
+web/*.tsbuildinfo
 api/bin

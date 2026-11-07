@@ -33,6 +33,8 @@
 
 create 遇到已有 ID（包括软删除）拒绝；其余 kind 遇到不存在的 ID 拒绝。delete 为软删除，重复 delete 仍记日志；restore 取消删除并清空删除元数据，重复 restore 仍记日志。
 
+M1 保持 schemaVersion 1，`itinerary_item` 新增可选 startTime/endTime、timezone/endTimezone、endDate、bookingInfo、voucherIds、wishItemId 和 sortOrder；`wish_item` 新增 title（必填）、note、url、place，任何当前成员可 create/update/delete/restore。字段校验见 `docs/tasks/m1-wishlist-itinerary.md` 第 1 节；endDate 与 date 对合并后的实体进行比较，更新单个字段也不能产生倒置日期。心愿已安排状态由未删除行程项的 wishItemId 推导。
+
 update 按字段最后写入胜出：`fieldSeq[field] > baseSeq[field]` 且服务器值与新值不同，则接受写入，同时返回冲突。baseSeq 缺省按 0；字段值相同不产生 change、不更新该字段的 fieldSeq/fieldActor，也不产生冲突。不同字段互不干扰。
 
 ```json

@@ -30,7 +30,14 @@ func New(pool *pgxpool.Pool, c config.Config, m Mailer) (http.Handler, func()) {
 		}
 	}
 	q := newMailQueue(m)
-	s := &Server{pool: pool, queries: db.New(pool), config: c, mail: q, ipLimit: newLimiter(60, time.Minute), accountLimit: newLimiter(20, time.Minute), hub: newEventHub()}
+	ip, account := c.AuthRateLimitIP, c.AuthRateLimitAccount
+	if ip == 0 {
+		ip = 60
+	}
+	if account == 0 {
+		account = 20
+	}
+	s := &Server{pool: pool, queries: db.New(pool), config: c, mail: q, ipLimit: newLimiter(ip, time.Minute/time.Duration(ip)), accountLimit: newLimiter(account, time.Minute/time.Duration(account)), hub: newEventHub()}
 	return newHandler(s), q.close
 }
 func newHandler(s *Server) http.Handler {

@@ -10,6 +10,7 @@ import (
 )
 
 type Config struct {
+	AuthRateLimitIP, AuthRateLimitAccount             int
 	Port                                              int
 	DatabaseURL, PublicBaseURL, SigningKey, UploadDir string
 	MaxUploadMB                                       int
@@ -42,6 +43,7 @@ func load(get func(string) string) (Config, error) {
 		fallback, max int
 		dest          *int
 	}{
+		{"AUTH_RATE_LIMIT_IP_PER_MINUTE", 60, 1000000, &c.AuthRateLimitIP}, {"AUTH_RATE_LIMIT_ACCOUNT_PER_MINUTE", 20, 1000000, &c.AuthRateLimitAccount},
 		{"PORT", 8080, 65535, &c.Port}, {"MAX_UPLOAD_MB", 32, 1048576, &c.MaxUploadMB}, {"SMTP_PORT", 587, 65535, &c.SMTPPort},
 	} {
 		value := get(item.name)

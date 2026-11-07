@@ -45,6 +45,7 @@ export function SyncStatus() {
       <button
         type="button"
         role="status"
+        aria-label="同步状态"
         className="row muted"
         onClick={() => {
           if (rejected) setOpen(true)

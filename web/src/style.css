@@ -313,3 +313,114 @@ body {
   font-family: 'Inter Variable', system-ui, sans-serif;
   font-size: 16px;
 }
+.itinerary-columns {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+.day-section {
+  border-radius: var(--radius);
+  padding: 12px;
+  min-height: 110px;
+  scroll-margin-top: 80px;
+}
+.day-section.is-today,
+.day-section.drop-active {
+  background: var(--accent);
+  outline: 2px solid var(--ring);
+}
+.itinerary-card,
+.wish-card {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--card-foreground);
+  padding: 16px;
+  text-align: left;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.item-main {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) 2fr;
+  width: 100%;
+  gap: 12px;
+  text-align: left;
+  align-items: start;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+.item-time {
+  font-size: 16px;
+  color: var(--muted-foreground);
+  white-space: pre-wrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+.item-main .stack {
+  gap: 6px;
+}
+.wish-marker {
+  color: var(--primary);
+  font-size: 16px;
+}
+.booking-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 12px;
+}
+.item-menu {
+  margin-top: 8px;
+}
+summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding-block: 10px;
+}
+.item-menu .row {
+  flex-wrap: wrap;
+}
+.drag-handle {
+  touch-action: none;
+  cursor: grab;
+}
+.itinerary-card > .drag-handle {
+  margin-top: 8px;
+}
+.notice-count {
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 0 6px;
+}
+textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 12px;
+  border: 1px solid var(--input);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+}
+.calendar-popover {
+  z-index: 80;
+  padding: 12px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.rdp-root {
+  --rdp-accent-color: var(--primary);
+  --rdp-day_button-height: 44px;
+  --rdp-day_button-width: 44px;
+}
+@media (min-width: 840px) {
+  .itinerary-columns {
+    grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+  }
+}

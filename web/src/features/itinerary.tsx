@@ -1,5 +1,17 @@
-import { useState } from 'react'
-import { useParams, useSearchParams } from 'react-router'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useParams, useSearchParams } from 'react-router'
+import { Bell } from 'lucide-react'
+import {
+  DndContext,
+  MouseSensor,
+  TouchSensor,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { SortableContext, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   database,
@@ -8,11 +20,33 @@ import {
   type Pending,
   type Notice,
   type Trip,
+  type Entity,
 } from '@/data/db'
 import { useEntities } from '@/data/hooks'
 import { useSession } from '@/platform/session'
 import { api } from '@/api/client'
-import { useOnline } from '@/ui/hooks'
+import { useMedia, useOnline } from '@/ui/hooks'
+import { DateInput } from '@/ui/date-input'
+import {
+  dayLabel,
+  formatDateTime,
+  todayInZone,
+  tripDays,
+  validTimezone,
+} from '@/domain/format'
+import {
+  compareItems,
+  insertionKey,
+  scheduledItems,
+  sortKey,
+  timeLabel,
+} from '@/domain/itinerary'
+import {
+  DateChooser,
+  WishEditor,
+  WishlistPanel,
+  scheduleWish,
+} from './wishlist'
 import { ResponsiveOverlay } from '@/ui/responsive-overlay'
 import { Button } from '@/ui/components/button'
 import { Card } from '@/ui/components/card'
@@ -37,6 +71,15 @@ const labels: Record<string, string> = {
   timezone: '时区',
   baseCurrency: '结算币种',
   avatarUrl: '头像',
+  startTime: '开始时间',
+  endTime: '结束时间',
+  endTimezone: '到达时区',
+  bookingInfo: '预订信息',
+  voucherIds: '凭证',
+  wishItemId: '心愿',
+  sortOrder: '排序',
+  note: '备注',
+  url: '链接',
 }
 const value = (v: unknown) => (v == null ? '空' : String(v))
 function useTripData() {
@@ -64,6 +107,18 @@ export function ItemEditor({
   const [title, setTitle] = useState(String(initial.title ?? ''))
   const [date, setDate] = useState(String(initial.date ?? trip.startDate))
   const [place, setPlace] = useState(String(initial.place ?? ''))
+  const [extra, setExtra] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      [
+        'startTime',
+        'endTime',
+        'timezone',
+        'endDate',
+        'endTimezone',
+        'bookingInfo',
+      ].map((k) => [k, String(initial[k] ?? '')]),
+    ),
+  )
   const [busy, setBusy] = useState(false)
   const [history, setHistory] = useState(false)
   const expired = useSession((s) => s.status !== 'authenticated')
@@ -75,7 +130,43 @@ export function ItemEditor({
           e.preventDefault()
           setBusy(true)
           try {
-            const all = { title, date, place: place || null }
+            for (const key of ['timezone', 'endTimezone']) {
+              if (extra[key] && !validTimezone(extra[key]))
+                throw new Error(`${labels[key]}无效，请输入 IANA 时区`)
+            }
+            const peers =
+              kind === 'create'
+                ? (
+                    await db.entities
+                      .where('[tripId+entity]')
+                      .equals([trip.id, 'itinerary_item'])
+                      .toArray()
+                  )
+                    .flatMap((r) =>
+                      r.view &&
+                      !r.view.deleted &&
+                      r.view.fields.date === date &&
+                      !r.view.fields.startTime
+                        ? [r.view]
+                        : [],
+                    )
+                    .sort(compareItems)
+                : []
+            const all = {
+              title,
+              date,
+              place: place || null,
+              ...Object.fromEntries(
+                Object.entries(extra).map(([k, v]) => [k, v || null]),
+              ),
+              ...(kind === 'create'
+                ? {
+                    sortOrder: insertionKey(
+                      peers.length ? sortKey(peers.at(-1)!) : null,
+                    ),
+                  }
+                : {}),
+            }
             const fields =
               kind === 'create'
                 ? all
@@ -111,21 +202,70 @@ export function ItemEditor({
         </label>
         <label>
           日期
-          <input
-            required
-            type="date"
-            min={trip.startDate}
-            max={trip.endDate}
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
+          <DateInput value={date} onChange={setDate} />
         </label>
+        {(['startTime', 'endTime'] as const).map((k) => (
+          <label key={k}>
+            {labels[k]}
+            <input
+              type="time"
+              value={extra[k]}
+              onChange={(e) => setExtra({ ...extra, [k]: e.target.value })}
+            />
+          </label>
+        ))}
+        <details>
+          <summary>更多选项</summary>
+          <div className="stack">
+            <label>
+              时区
+              <input
+                placeholder={trip.timezone}
+                value={extra.timezone}
+                onChange={(e) =>
+                  setExtra({ ...extra, timezone: e.target.value })
+                }
+              />
+            </label>
+            <label>
+              到达日期
+              <input
+                type="date"
+                min={date}
+                value={extra.endDate}
+                onChange={(e) =>
+                  setExtra({ ...extra, endDate: e.target.value })
+                }
+              />
+            </label>
+            <label>
+              到达时区
+              <input
+                placeholder={extra.timezone || trip.timezone}
+                value={extra.endTimezone}
+                onChange={(e) =>
+                  setExtra({ ...extra, endTimezone: e.target.value })
+                }
+              />
+            </label>
+          </div>
+        </details>
         <label>
           地点
           <input
             maxLength={200}
             value={place}
             onChange={(e) => setPlace(e.target.value)}
+          />
+        </label>
+        <label>
+          预订信息
+          <textarea
+            maxLength={2000}
+            value={extra.bookingInfo}
+            onChange={(e) =>
+              setExtra({ ...extra, bookingInfo: e.target.value })
+            }
           />
         </label>
         <Button loading={busy} disabled={expired}>
@@ -207,64 +347,235 @@ export function Itinerary() {
     [db, tripId],
     [],
   )
-  const days: string[] = []
-  if (trip)
-    for (
-      let d = new Date(`${trip.startDate}T12:00:00Z`);
-      d.toISOString().slice(0, 10) <= trip.endDate;
-      d.setUTCDate(d.getUTCDate() + 1)
+  const wishes = useEntities(db, tripId, 'wish_item')
+  const desktop = useMedia('(min-width: 840px)')
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 5 },
+    }),
+  )
+  const [moving, setMoving] = useState<Entity | null>(null)
+  const days = trip ? tripDays(trip.startDate, trip.endDate) : []
+  const today = trip ? todayInZone(trip.timezone) : ''
+  const scrolled = useRef('')
+  useEffect(() => {
+    if (trip) {
+      const target = params.get('item')
+      const key = `${trip.id}:${target ?? today}`
+      const element = document.getElementById(
+        target ? `item-${target}` : `day-${today}`,
+      )
+      if (element && scrolled.current !== key) {
+        element.scrollIntoView({ block: 'center' })
+        scrolled.current = key
+      }
+    }
+  }, [trip, today, params, items])
+  const sorted = (day: string) =>
+    items
+      .filter((row) =>
+        day === 'outside'
+          ? !days.includes(String(row.view!.fields.date))
+          : row.view!.fields.date === day,
+      )
+      .sort(
+        (a, b) =>
+          compareItems(a.view!, b.view!) ||
+          (pending.find((o) => o.entityId === a.entityId && o.kind === 'create')
+            ?.localId ?? 0) -
+            (pending.find(
+              (o) => o.entityId === b.entityId && o.kind === 'create',
+            )?.localId ?? 0),
+      )
+  async function move(row: Entity, date: string, target?: Entity) {
+    const peers = sorted(date).filter(
+      (i) => i.entityId !== row.entityId && !i.view!.fields.startTime,
     )
-      days.push(d.toISOString().slice(0, 10))
+    const index = target
+      ? peers.findIndex((i) => i.entityId === target.entityId)
+      : peers.length
+    const sameDay = row.view!.fields.date === date
+    const original = sorted(date)
+    const movingDown =
+      target && sameDay && original.indexOf(row) < original.indexOf(target)
+    const at = index < 0 ? peers.length : index + (movingDown ? 1 : 0)
+    const before = peers[at - 1]?.view ? sortKey(peers[at - 1].view!) : null,
+      after = peers[at]?.view ? sortKey(peers[at].view!) : null
+    const key = after
+      ? insertionKey(before ? String(before) : null, String(after))
+      : insertionKey(before ? String(before) : null)
+    await writeEntity(db, tripId, 'itinerary_item', row.entityId, 'update', {
+      date,
+      ...shiftArrival(row.view!.fields, date),
+      ...(!row.view!.fields.startTime ? { sortOrder: key } : {}),
+    })
+  }
+  async function reorder(row: Entity, direction: number) {
+    const peers = sorted(String(row.view!.fields.date)).filter(
+        (i) => !i.view!.fields.startTime,
+      ),
+      index = peers.findIndex((i) => i.entityId === row.entityId),
+      target = index + direction
+    if (target < 0 || target >= peers.length) return
+    const remaining = peers.filter((i) => i !== row)
+    const before = remaining[target - 1]?.view
+        ? sortKey(remaining[target - 1].view!)
+        : null,
+      after = remaining[target]?.view ? sortKey(remaining[target].view!) : null
+    const key = after
+      ? insertionKey(before ? String(before) : null, String(after))
+      : insertionKey(before ? String(before) : null)
+    await writeEntity(db, tripId, 'itinerary_item', row.entityId, 'update', {
+      sortOrder: key,
+    })
+  }
+  async function dragEnd(event: DragEndEvent) {
+    if (!trip || !event.over) return
+    try {
+      const over = String(event.over.id),
+        target = items.find((i) => i.entityId === over)
+      const date = over.startsWith('day:')
+        ? over.slice(4)
+        : String(target?.view!.fields.date ?? '')
+      if (!days.includes(date)) return
+      const wish = event.active.data.current?.wish as Entity | undefined
+      if (wish) await scheduleWish(db, trip, wish, date)
+      else {
+        const row = items.find((i) => i.entityId === String(event.active.id))
+        if (row && row !== target) await move(row, date, target)
+      }
+    } catch (e) {
+      toast.error(String(e))
+    }
+  }
   const groups = [...days, 'outside']
   return (
     <main className="page stack">
-      <h1>行程</h1>
-      <Button variant="outline" onClick={() => setNoticesOpen(true)}>
-        行程提示（{notices.filter((n) => !n.dismissed).length}）
+      <div className="row justify-between">
+        <h1>行程</h1>
+        <Button
+          variant="outline"
+          aria-label="行程提示"
+          onClick={() => setNoticesOpen(true)}
+        >
+          <Bell size={20} />
+          {notices.filter((n) => !n.dismissed).length > 0 && (
+            <span className="notice-count">
+              {notices.filter((n) => !n.dismissed).length}
+            </span>
+          )}
+        </Button>
+      </div>
+      <Button variant="outline" asChild>
+        <Link to={`/trips/${tripId}/wishes`}>
+          心愿池（
+          {
+            wishes.filter(
+              (w) =>
+                !scheduledItems(
+                  w.entityId,
+                  items.map((i) => i.view!),
+                ).length,
+            ).length
+          }{' '}
+          未安排）
+        </Link>
       </Button>
-      {groups.map((day, index) => (
-        <section key={day} className="stack">
-          <h2>
-            {day === 'outside'
-              ? '未在行程日期内'
-              : `第 ${index + 1} 天 · ${new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'short', timeZone: 'UTC' }).format(new Date(`${day}T12:00:00Z`))}`}
-          </h2>
-          {items
-            .filter((row) =>
-              day === 'outside'
-                ? !days.includes(String(row.view!.fields.date))
-                : row.view!.fields.date === day,
-            )
-            .sort(
-              (a, b) =>
-                (a.view!.createdSeq || Number.MAX_SAFE_INTEGER) -
-                  (b.view!.createdSeq || Number.MAX_SAFE_INTEGER) ||
-                (pending.find(
-                  (op) => op.entityId === a.entityId && op.kind === 'create',
-                )?.localId ?? 0) -
-                  (pending.find(
-                    (op) => op.entityId === b.entityId && op.kind === 'create',
-                  )?.localId ?? 0),
-            )
-            .map((row) => (
-              <button
-                className="list-row flex flex-col items-start gap-2 text-left"
-                data-testid="itinerary-item"
-                key={row.entityId}
-                onClick={() =>
-                  setEditor({
-                    id: row.entityId,
-                    fields: row.view!.fields,
-                    kind: 'update',
-                  })
+      <DndContext sensors={sensors} onDragEnd={dragEnd}>
+        <div className="itinerary-columns">
+          <div className="stack">
+            {groups.map((day, index) => (
+              <DaySection
+                key={day}
+                day={day}
+                title={
+                  day === 'outside' ? '未在行程日期内' : dayLabel(day, index)
                 }
+                today={day === today}
               >
-                <strong>{String(row.view!.fields.title)}</strong>
-                <span>{String(row.view!.fields.place ?? '')}</span>
-              </button>
+                <SortableContext items={sorted(day).map((i) => i.entityId)}>
+                  {trip &&
+                    sorted(day).map((row, i, rows) => (
+                      <ItineraryCard
+                        key={row.entityId}
+                        row={row}
+                        trip={trip!}
+                        desktop={desktop}
+                        onEdit={() =>
+                          setEditor({
+                            id: row.entityId,
+                            fields: row.view!.fields,
+                            kind: 'update',
+                          })
+                        }
+                        onMove={() => setMoving(row)}
+                        onReorder={(direction) => {
+                          void reorder(row, direction).catch((e) =>
+                            toast.error(String(e)),
+                          )
+                        }}
+                        canUp={i > 0}
+                        canDown={
+                          i <
+                          rows.filter((r) => !r.view!.fields.startTime).length -
+                            1
+                        }
+                        onReturn={async () => {
+                          try {
+                            await writeEntity(
+                              db,
+                              tripId,
+                              'itinerary_item',
+                              row.entityId,
+                              'delete',
+                            )
+                            toast.undoable('已移回心愿池', () => {
+                              void writeEntity(
+                                db,
+                                tripId,
+                                'itinerary_item',
+                                row.entityId,
+                                'restore',
+                              ).catch((e) => toast.error(String(e)))
+                            })
+                          } catch (e) {
+                            toast.error(String(e))
+                          }
+                        }}
+                      />
+                    ))}
+                </SortableContext>
+                {!sorted(day).length && day !== 'outside' && (
+                  <p className="text-muted-foreground">这一天还没有安排</p>
+                )}
+              </DaySection>
             ))}
-        </section>
-      ))}
+          </div>
+          {desktop && trip && (
+            <aside className="stack">
+              <WishlistPanel db={db} trip={trip} draggable />
+            </aside>
+          )}
+        </div>
+      </DndContext>
+      <ResponsiveOverlay
+        open={!!moving}
+        onOpenChange={(open) => {
+          if (!open) setMoving(null)
+        }}
+        title="移到其它天"
+      >
+        {trip && moving && (
+          <DateChooser
+            trip={trip}
+            onChoose={async (date) => {
+              await move(moving, date)
+              setMoving(null)
+            }}
+          />
+        )}
+      </ResponsiveOverlay>
       <Fab
         aria-label="新增条目"
         disabled={!trip || useSession.getState().status !== 'authenticated'}
@@ -299,6 +610,162 @@ export function Itinerary() {
         <NoticeList db={db} notices={notices} />
       </ResponsiveOverlay>
     </main>
+  )
+}
+function shiftArrival(fields: Op['fields'], date: string) {
+  if (!fields.endDate || fields.date === date) return {}
+  const delta =
+    new Date(`${date}T12:00:00Z`).getTime() -
+    new Date(`${fields.date}T12:00:00Z`).getTime()
+  return {
+    endDate: new Date(new Date(`${fields.endDate}T12:00:00Z`).getTime() + delta)
+      .toISOString()
+      .slice(0, 10),
+  }
+}
+function DaySection({
+  day,
+  title,
+  today,
+  children,
+}: {
+  day: string
+  title: string
+  today: boolean
+  children: React.ReactNode
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `day:${day}`,
+    disabled: day === 'outside',
+  })
+  return (
+    <section
+      ref={setNodeRef}
+      id={`day-${day}`}
+      data-day={day}
+      className={`day-section stack ${today ? 'is-today' : ''} ${isOver ? 'drop-active' : ''}`}
+    >
+      <h2>
+        {title}
+        {today ? ' · 今天' : ''}
+      </h2>
+      {children}
+    </section>
+  )
+}
+function BookingText({ text }: { text: string }) {
+  const parts = text.split(/(https?:\/\/[^\s<>]+|\+?\d[\d ()-]{5,}\d)/g)
+  return (
+    <>
+      {parts.map((part, i) =>
+        /^https?:\/\//.test(part) ? (
+          <a key={i} href={part} target="_blank" rel="noopener noreferrer">
+            {part}
+          </a>
+        ) : /^\+?\d[\d ()-]{5,}\d$/.test(part) ? (
+          <a key={i} href={`tel:${part.replace(/[^+\d]/g, '')}`}>
+            {part}
+          </a>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  )
+}
+function ItineraryCard({
+  row,
+  trip,
+  desktop,
+  onEdit,
+  onMove,
+  onReorder,
+  canUp,
+  canDown,
+  onReturn,
+}: {
+  row: Entity
+  trip: Trip
+  desktop: boolean
+  onEdit: () => void
+  onMove: () => void
+  onReorder: (direction: number) => void
+  canUp: boolean
+  canDown: boolean
+  onReturn: () => Promise<void>
+}) {
+  const f = row.view!.fields
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: row.entityId, disabled: !desktop })
+  return (
+    <article
+      id={`item-${row.entityId}`}
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className="itinerary-card"
+    >
+      <button
+        className="item-main"
+        data-testid="itinerary-item"
+        onClick={onEdit}
+      >
+        <span className="item-time">{timeLabel(f, trip.timezone)}</span>
+        <span className="stack">
+          <strong>{String(f.title)}</strong>
+          {!!f.place && (
+            <span className="text-muted-foreground">{String(f.place)}</span>
+          )}
+          {!!f.wishItemId && <span className="wish-marker">来自心愿</span>}
+        </span>
+      </button>
+      {!!f.bookingInfo && (
+        <p className="booking-summary">
+          <BookingText text={String(f.bookingInfo).split('\n')[0]} />
+        </p>
+      )}
+      <details className="item-menu">
+        <summary aria-label={`条目操作 ${f.title}`}>更多操作</summary>
+        <div className="row">
+          {!f.startTime && (
+            <>
+              <Button
+                variant="outline"
+                disabled={!canUp}
+                onClick={() => onReorder(-1)}
+              >
+                上移
+              </Button>
+              <Button
+                variant="outline"
+                disabled={!canDown}
+                onClick={() => onReorder(1)}
+              >
+                下移
+              </Button>
+            </>
+          )}
+          <Button variant="outline" onClick={onMove}>
+            移到其它天
+          </Button>
+          {!!f.wishItemId && (
+            <Button variant="outline" onClick={() => void onReturn()}>
+              移回心愿池
+            </Button>
+          )}
+        </div>
+      </details>
+      {desktop && (
+        <Button
+          variant="outline"
+          className="drag-handle"
+          aria-label={`拖动条目 ${f.title}`}
+          {...attributes}
+          {...listeners}
+        >
+          ⠿
+        </Button>
+      )}
+    </article>
   )
 }
 function NoticeList({ db, notices }: { db: Database; notices: Notice[] }) {
@@ -391,7 +858,7 @@ export function RejectedChanges() {
       {rows.map((row) => (
         <Card key={row.opId}>
           <p>
-            行程条目「
+            {row.entity === 'wish_item' ? '心愿' : '行程条目'}「
             {String(
               entities.find(
                 (entity) =>
@@ -440,7 +907,19 @@ export function RejectedChanges() {
       >
         {retry &&
           trip &&
-          (retry.kind === 'update' || retry.kind === 'create' ? (
+          (retry.entity === 'wish_item' &&
+          (retry.kind === 'update' || retry.kind === 'create') ? (
+            <WishEditor
+              db={db}
+              trip={trip}
+              wish={entity ?? null}
+              retry={retry}
+              onSaved={async () => {
+                await db.rejected.delete(retry.opId)
+                setRetry(null)
+              }}
+            />
+          ) : retry.kind === 'update' || retry.kind === 'create' ? (
             <ItemEditor
               key={retry.opId}
               db={db}
@@ -479,10 +958,12 @@ export function HistoryList({
   db,
   tripId,
   entityId,
+  entity = 'itinerary_item',
 }: {
   db: Database
   tripId: string
   entityId?: string
+  entity?: string
 }) {
   const [limit, setLimit] = useState(30)
   const [busy, setBusy] = useState(false)
@@ -504,7 +985,7 @@ export function HistoryList({
       {rows.slice(0, limit).map((op) => (
         <Card key={op.serverSeq}>
           <p>
-            {name(op.actorUserId)} · {new Date(op.serverTime).toLocaleString()}{' '}
+            {name(op.actorUserId)} · {formatDateTime(op.serverTime)}{' '}
             {op.conflicts?.length ? '冲突' : ''}
           </p>
           <p>
@@ -518,12 +999,13 @@ export function HistoryList({
                 ? `${name(op.actorUserId)} 把行程名改为 ${value(op.fields.name)}`
                 : op.entity === 'trip'
                   ? `${name(op.actorUserId)} 修改了行程设置`
-                  : `行程条目 · ${{ create: '新增', update: '修改', delete: '删除', restore: '恢复' }[op.kind]}`}
+                  : `${op.entity === 'wish_item' ? '心愿' : '行程条目'} · ${{ create: '新增', update: '修改', delete: '删除', restore: '恢复' }[op.kind]}`}
           </p>
           {Object.entries(op.changes).map(([field, change]) => (
             <p key={field}>
-              {labels[field] ?? field}：{value(change.old)} →{' '}
-              {value(change.new)}
+              {field === 'sortOrder'
+                ? '调整了顺序'
+                : `${field === 'endDate' && op.entity === 'itinerary_item' ? '到达日期' : (labels[field] ?? field)}：${value(change.old)} → ${value(change.new)}`}
             </p>
           ))}
         </Card>
@@ -543,7 +1025,7 @@ export function HistoryList({
                   query: {
                     before: rows.at(-1)?.serverSeq,
                     limit: 30,
-                    ...(entityId ? { entity: 'itinerary_item', entityId } : {}),
+                    ...(entityId ? { entity, entityId } : {}),
                   },
                 },
               })

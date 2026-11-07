@@ -12,7 +12,7 @@ func TestLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Port != 8080 || c.MaxUploadMB != 32 || len(c.CORSAllowedOrigins) != 0 {
+	if c.Port != 8080 || c.MaxUploadMB != 32 || len(c.CORSAllowedOrigins) != 0 || c.AuthRateLimitIP != 60 || c.AuthRateLimitAccount != 20 {
 		t.Fatalf("unexpected defaults: %+v", c)
 	}
 	if !c.CookieSecure || c.SMTPTLSMode != "starttls" || len(c.TrustedProxies) == 0 {
@@ -28,7 +28,7 @@ func TestLoad(t *testing.T) {
 			}
 		})
 	}
-	for _, key := range []string{"PORT", "MAX_UPLOAD_MB", "SMTP_PORT"} {
+	for _, key := range []string{"PORT", "MAX_UPLOAD_MB", "SMTP_PORT", "AUTH_RATE_LIMIT_IP_PER_MINUTE", "AUTH_RATE_LIMIT_ACCOUNT_PER_MINUTE"} {
 		for _, value := range []string{"bad", "0", "-1", "9999999999"} {
 			old := values[key]
 			values[key] = value

@@ -118,8 +118,8 @@ op {
 | DefaultRate | tripId, currency, rate |
 | Member | tripId, userId, role, joinedAt, leftAt |
 | Invite | tripId, token, expiresAt, revokedAt |
-| WishItem | title, note, url, place, createdBy, scheduledItemId? |
-| ItineraryItem | date, startTime?, endTime?, timezone, title, place, bookingInfo, voucherIds[], wishItemId?, sortOrder |
+| WishItem | title, note, url, place, createdBy；已安排状态由未删除的 ItineraryItem.wishItemId 推导，不保存 scheduledItemId |
+| ItineraryItem | date, startTime?, endTime?, timezone?, endDate?, endTimezone?, title, place, bookingInfo, voucherIds[], wishItemId?, sortOrder |
 | Wallet | ownerMemberId, currency |
 | Exchange | walletId, cnyPaid, foreignReceived, date |
 | Expense | 见 4.3 |

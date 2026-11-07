@@ -15,6 +15,7 @@ import { Avatar } from '@/ui/components/avatar'
 import { ResponsiveOverlay } from '@/ui/responsive-overlay'
 import { toast } from '@/ui/components/sonner'
 import { errorMessage } from './auth-utils'
+import { formatDateTime } from '@/domain/format'
 type TripInput = components['schemas']['TripBody']
 export function TripForm({
   initial,
@@ -294,7 +295,7 @@ export function Members() {
                   {invite.revokedAt
                     ? '已作废'
                     : invite.expiresAt
-                      ? `有效至 ${new Date(invite.expiresAt).toLocaleString()}`
+                      ? `有效至 ${formatDateTime(invite.expiresAt)}`
                       : '永久有效'}
                 </p>
                 <div className="row">

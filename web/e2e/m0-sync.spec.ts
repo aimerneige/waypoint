@@ -3,7 +3,9 @@ import { latestMailLink } from './mailpit'
 test.use({ actionTimeout: 10000 })
 
 async function synced(page: Page) {
-  await expect(page.getByRole('status')).toHaveText('已同步')
+  await expect(page.getByRole('status', { name: '同步状态' })).toHaveText(
+    '已同步',
+  )
 }
 async function edit(
   page: Page,
@@ -129,8 +131,12 @@ test('M0 双用户离线、冲突、拒绝、删除、移除与退出清理', as
       await add(a, 'X')
       await add(b, 'Y')
       await remove(b, 'Z')
-      await expect(a.getByRole('status')).toHaveText('离线（2 条待同步）')
-      await expect(b.getByRole('status')).toHaveText('离线（3 条待同步）')
+      await expect(a.getByRole('status', { name: '同步状态' })).toHaveText(
+        '离线（2 条待同步）',
+      )
+      await expect(b.getByRole('status', { name: '同步状态' })).toHaveText(
+        '离线（3 条待同步）',
+      )
       await ac.setOffline(false)
       await bc.setOffline(false)
       await synced(a)
@@ -208,14 +214,16 @@ test('M0 双用户离线、冲突、拒绝、删除、移除与退出清理', as
         await route.continue({ postData: JSON.stringify(body) })
       })
       await bc.setOffline(false)
-      await expect(b.getByRole('status')).toHaveText('有修改未生效')
+      await expect(b.getByRole('status', { name: '同步状态' })).toHaveText(
+        '有修改未生效',
+      )
       await expect(
         b.getByTestId('itinerary-item').filter({ hasText: 'A 冲突值' }),
       ).toBeVisible()
       await expect(
         b.getByTestId('itinerary-item').filter({ hasText: '被拒内容' }),
       ).toHaveCount(0)
-      await b.getByRole('status').click()
+      await b.getByRole('status', { name: '同步状态' }).click()
       await expect(b.getByRole('dialog')).toContainText('修改内容不合法')
       await shots(b, 'rejected')
       await b.unroute('**/api/trips/*/ops')
