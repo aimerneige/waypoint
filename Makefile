@@ -1,4 +1,4 @@
-.PHONY: gen dev-db test test-integration lint build up down
+.PHONY: gen dev-db test test-integration lint build up down e2e
 gen:
 	cd api && go tool oapi-codegen -config oapi-codegen.yaml ../openapi/openapi.yaml
 	cd api && go tool sqlc generate
@@ -21,3 +21,6 @@ up:
 	docker compose up -d --build
 down:
 	docker compose down
+e2e:
+	docker compose --profile dev up -d --build --wait
+	cd web && npx playwright test

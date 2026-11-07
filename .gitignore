@@ -3,3 +3,6 @@ node_modules/
 web/dist/
 api/bin/
 *.tsbuildinfo
+web/e2e/screenshots/
+web/test-results/
+web/playwright-report/

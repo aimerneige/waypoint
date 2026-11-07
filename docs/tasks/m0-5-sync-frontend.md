@@ -3,6 +3,11 @@
 前置：M0.1–M0.4 已完成。先阅读 `docs/sync-protocol.md`（后端协议，**唯一实现依据**）、`spec.md` 第 1.2、2、7.5 节、`docs/decisions.md`，以及现有 `web/` 代码（UI 组件、API 客户端、会话 store、platform 接口）。
 若发现协议文档与后端实际行为不一致，以后端代码为准修正文档，并在最终回复中列出。
 
+## 0. 前置修正（M0.4 验收遗留）
+- **修改密码后不应退出登录**：后端设计是保留当前会话、注销其它会话（spec 1.1、M0.2）。前端改为成功后留在原页面，提示"密码已修改，其他设备已退出登录"。同步修改 e2e。
+- **桌面布局对齐**：≥840px 时品牌标识（Logo + Waypoint）放到左侧导航栏顶部，顶栏（同步状态、账户入口）只占内容区并与内容列对齐，不再出现品牌在顶栏中部、导航栏贴左的错位。
+- **e2e 可诊断性**：架构师复验时曾出现一次桌面用例偶发失败且无法复现。Playwright 配置 `trace: retain-on-failure`、`screenshot: only-on-failure`，失败产物在 `web/test-results/`（不提交）。把 M0.4 的单个超长用例按场景拆分为独立用例（账号流程 / 找回密码 / 弹层返回 / 主题 / 离线外壳 / 邀请加入），每个用例自建数据，互不依赖。
+
 ## 1. 模型：已确认状态 + 待发送操作重放（必须按此实现）
 - 每个实体在本地保存两份：`server`（只由服务器 op/快照更新的已确认状态：fields、fieldSeq、fieldActor、deleted…）与 `view`（= server 状态上按顺序重放本地尚未确认的 op 得到的结果，界面只读 view）。
 - 本地写入：生成 op（`opId`=crypto.randomUUID、`schemaVersion`=当前版本、`baseSeq`=该字段在 **server** 状态中的 fieldSeq、`clientTime`）→ 写入 outbox → 重算该实体 view。同一个 Dexie 事务完成，保证原子。

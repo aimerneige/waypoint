@@ -4,7 +4,15 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 
 export default tseslint.config(
-  { ignores: ['dist', 'src/api/schema.d.ts'] },
+  {
+    ignores: [
+      'dist',
+      'src/api/schema.d.ts',
+      'test-results',
+      'playwright-report',
+      'e2e/screenshots',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

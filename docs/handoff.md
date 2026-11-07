@@ -8,7 +8,7 @@
   - [x] M0.1 骨架 + compose + OpenAPI 生成链路
   - [x] M0.2 后端账号与鉴权
   - [x] M0.3 后端同步协议 + 行程/成员/邀请 + ItineraryItem（产出 `docs/sync-protocol.md`）
-  - [ ] M0.4 前端 UI 基础 + 账号页面 + Playwright（主色在此定稿 → D13）
+  - [x] M0.4 前端 UI 基础 + 账号页面 + Playwright（主色在此定稿 → D13）
   - [ ] M0.5 前端本地库 + 同步层 + 行程/成员/邀请页面
   - [ ] M0.6 ItineraryItem 列表 + 冲突/拒绝/修改记录界面 + 退出清理 + M0 端到端验收
 - 验收流程：读 codex 报告 → 自己在 worker 上重跑 lint/test/`make test-integration`/compose 冒烟 → 审关键代码 → 提交。

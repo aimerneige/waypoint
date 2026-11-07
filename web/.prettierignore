@@ -2,3 +2,6 @@ dist
 node_modules
 src/api/schema.d.ts
 package-lock.json
+test-results/
+playwright-report/
+e2e/screenshots/

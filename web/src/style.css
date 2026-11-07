@@ -1,24 +1,48 @@
 @import 'tailwindcss';
-
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --primary: #1d4ed8;
+  --background: #f7fafc;
+  --foreground: #0f1b26;
+  --card: #ffffff;
+  --card-foreground: #0f1b26;
+  --popover: #ffffff;
+  --popover-foreground: #0f1b26;
+  --primary: #1b65a6;
   --primary-foreground: #ffffff;
-  --accent: #dbeafe;
-  --border: #cbd5e1;
-  --ring: #2563eb;
+  --secondary: #e3f1fc;
+  --secondary-foreground: #173e60;
+  --muted: #eaf0f5;
+  --muted-foreground: #526372;
+  --accent: #e3f1fc;
+  --accent-foreground: #173e60;
+  --destructive: #b42332;
+  --destructive-foreground: #ffffff;
+  --border: #bdcada;
+  --input: #bdcada;
+  --ring: #3d9be0;
+  --radius: 0.75rem;
+  color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f172a;
-    --foreground: #f8fafc;
-    --primary: #bfdbfe;
-    --primary-foreground: #0f172a;
-    --accent: #1e3a5f;
-    --border: #475569;
-    --ring: #93c5fd;
-  }
+.dark {
+  --background: #0e141b;
+  --foreground: #e6edf3;
+  --card: #151d26;
+  --card-foreground: #e6edf3;
+  --popover: #151d26;
+  --popover-foreground: #e6edf3;
+  --primary: #8fcbf5;
+  --primary-foreground: #0a2236;
+  --secondary: #1c3347;
+  --secondary-foreground: #d1e9fc;
+  --muted: #202c38;
+  --muted-foreground: #a6b5c3;
+  --accent: #1c3347;
+  --accent-foreground: #d1e9fc;
+  --destructive: #f6a5ae;
+  --destructive-foreground: #400c16;
+  --border: #435467;
+  --input: #435467;
+  --ring: #8fcbf5;
+  color-scheme: dark;
 }
 @theme inline {
   --color-background: var(--background);
@@ -28,6 +52,235 @@
   --color-accent: var(--accent);
   --color-border: var(--border);
   --color-ring: var(--ring);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-input: var(--input);
+  --radius-md: var(--radius);
+}
+* {
+  box-sizing: border-box;
+}
+a {
+  color: var(--primary);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 44px;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: default;
+}
+h1 {
+  font-size: 2rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+label {
+  display: block;
+  margin-bottom: 6px;
+}
+form {
+  display: grid;
+  gap: 18px;
+}
+input,
+select {
+  min-height: 44px;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--input);
+  border-radius: 8px;
+}
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+.auth {
+  max-width: 440px;
+  margin: 7vh auto;
+  padding: 24px;
+}
+.brand {
+  font-size: 20px;
+  font-weight: 700;
+  gap: 10px;
+  margin-bottom: 32px;
+}
+.muted {
+  color: var(--muted-foreground);
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+.stack {
+  display: grid;
+  gap: 20px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.page {
+  max-width: 960px;
+  margin: auto;
+  padding: 24px;
+  animation: enter 0.18s ease-out;
+}
+.banner {
+  padding: 12px 24px;
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+.error {
+  color: var(--destructive);
+}
+.list-row {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.trip-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  z-index: 10;
+}
+.trip-nav a {
+  flex-direction: column;
+  padding: 8px 18px;
+  border-radius: 12px;
+  color: var(--muted-foreground);
+}
+.trip-nav a.active {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+.trip-content {
+  padding-bottom: 120px;
+}
+.fab {
+  position: fixed;
+  right: 24px;
+  bottom: calc(110px + env(safe-area-inset-bottom));
+  border-radius: 50%;
+  height: 56px;
+  width: 56px;
+}
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: #0008;
+  z-index: 30;
+}
+.overlay-content {
+  position: fixed;
+  z-index: 31;
+  background: var(--card);
+  color: var(--card-foreground);
+  padding: 24px;
+  border: 1px solid var(--border);
+  max-height: 85dvh;
+  overflow: auto;
+}
+.dialog {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(480px, 90vw);
+  border-radius: 16px;
+}
+.drawer {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-radius: 20px 20px 0 0;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}
+.drawer-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--border);
+  margin: 0 auto 20px;
+}
+@media (min-width: 840px) {
+  .trip-nav {
+    top: 100px;
+    bottom: 0;
+    right: auto;
+    width: 180px;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 12px;
+    border-top: 0;
+    border-right: 1px solid var(--border);
+  }
+  .trip-nav a {
+    flex-direction: row;
+  }
+  .trip-content {
+    margin-left: 180px;
+  }
+  .fab {
+    bottom: 32px;
+  }
+}
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  button:active {
+    transform: none !important;
+  }
 }
 body {
   margin: 0;

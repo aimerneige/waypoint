@@ -86,3 +86,23 @@
 - M0 没有业务实体，但验收要求"两台设备离线各自修改后数据一致"，同步引擎需要真实实体来验证。
 - 决定：M0 直接实现 `ItineraryItem` 的最小字段（title、date、place，含软删除），配一个简单列表界面；M1 在此基础上补全行程表其余字段与交互。
 - 被否决：临时测试实体（M1 还要删除，白写代码）。
+
+## D13. M0.4 主色定稿：天蓝
+
+- 亮色：background `#F7FAFC`、foreground `#0F1B26`、card/popover `#FFFFFF`；primary `#1B65A6` 配 `#FFFFFF`；accent/secondary `#E3F1FC` 配 `#173E60`；muted `#EAF0F5`、muted-foreground `#526372`；destructive `#B42332` 配 `#FFFFFF`；border/input `#BDCADA`；ring `#3D9BE0`。
+- 暗色：background `#0E141B`、foreground `#E6EDF3`、card/popover `#151D26`；primary `#8FCBF5` 配 `#0A2236`；accent/secondary `#1C3347` 配 `#D1E9FC`；muted `#202C38`、muted-foreground `#A6B5C3`；destructive `#F6A5AE` 配 `#400C16`；border/input `#435467`；ring `#8FCBF5`。
+- card/popover 文字沿用 foreground。圆角基础值 `0.75rem`。浅蓝用于亮色强调背景，深蓝主按钮保证白字对比度。
+- TS 令牌在 `web/src/ui/theme/tokens.ts`，CSS 对应值由单元测试逐主题、逐变量核对，避免测试与实际界面脱节。
+
+| 文字 / 背景 | 亮色对比度 | 暗色对比度 |
+| --- | ---: | ---: |
+| foreground / background | 16.63 | 15.66 |
+| primary-foreground / primary | 6.07 | 9.29 |
+| muted-foreground / background | 5.92 | 8.83 |
+| accent-foreground / accent | 9.64 | 10.39 |
+| destructive-foreground / destructive | 6.51 | 8.51 |
+| card-foreground / card | 17.43 | 14.38 |
+| popover-foreground / popover | 17.43 | 14.38 |
+| secondary-foreground / secondary | 9.64 | 10.39 |
+
+全部达到 WCAG AA 正文要求（≥ 4.5:1）。
