@@ -275,6 +275,8 @@ export class SyncEngine {
                   'entity_readonly',
                   'entity_exists',
                   'entity_not_found',
+                  'poll_closed',
+                  'forbidden_field',
                 ].includes(item.error?.code ?? '')
               )
                 throw new Error(item.error?.message ?? 'Temporary rejection')

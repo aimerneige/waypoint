@@ -20,6 +20,7 @@ const trip = {
 class Server implements Transport {
   logs: ServerOp[] = []
   reject = false
+  rejectionCode = 'invalid_op'
   list = async () => ({ trips: [trip] })
   snapshot = async () => {
     const states = new Map<string, components['schemas']['EntityState']>()
@@ -45,7 +46,7 @@ class Server implements Transport {
         return {
           opId: op.opId,
           status: 'rejected' as const,
-          error: { code: 'invalid_op', message: 'rejected' },
+          error: { code: this.rejectionCode, message: 'rejected' },
         }
       const seq = this.logs.length + 1
       let state = null
@@ -126,6 +127,34 @@ it('pushes then pulls; retains accepted overlays until the cursor passes', async
     (await db.entities.get(['t', 'itinerary_item', id]))?.server?.fields.title,
   ).toBe('A')
 })
+it.each(['poll_closed', 'forbidden_field'])(
+  'rolls back deterministic M3 rejection %s instead of retrying',
+  async (code) => {
+    const { db, server, engine } = await setup()
+    await db.trips.update('t', { lastSeq: 0 })
+    const id = await createEntity(db, 't', 'poll', {
+      question: '晚餐',
+      multiChoice: false,
+    })
+    await engine.sync('t')
+    const key = `vote.${db.userId}`
+    await updateEntity(db, 't', 'poll', id, { [key]: ['option'] })
+    expect(
+      (await db.entities.get(['t', 'poll', id]))?.view?.fields[key],
+    ).toEqual(['option'])
+    server.reject = true
+    server.rejectionCode = code
+    const pushing = vi.spyOn(server, 'push')
+    await engine.sync('t')
+    expect(await db.outbox.count()).toBe(0)
+    expect((await db.rejected.toArray())[0].error.code).toBe(code)
+    expect(
+      (await db.entities.get(['t', 'poll', id]))?.view?.fields[key],
+    ).toBeUndefined()
+    await engine.sync('t')
+    expect(pushing).toHaveBeenCalledTimes(1)
+  },
+)
 it('rolls back rejected changes and records conflict notices', async () => {
   const { db, server, engine } = await setup()
   await db.trips.update('t', { lastSeq: 0 })

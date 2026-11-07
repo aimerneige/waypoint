@@ -54,6 +54,26 @@ type EntityDef struct {
 	Kinds      map[ClientOpKind]bool
 	Readonly   bool
 	Permission func(string, db.EntityState) error
+	Dynamic    []DynamicFieldDef
+}
+
+type DynamicFieldDef struct {
+	Prefix     string
+	Key        func(string) bool
+	Field      FieldDef
+	Permission func(ClientOp, string) error
+}
+
+func (d EntityDef) field(key string) (FieldDef, bool) {
+	if f, ok := d.Fields[key]; ok {
+		return f, true
+	}
+	for _, f := range d.Dynamic {
+		if strings.HasPrefix(key, f.Prefix) && f.Key(strings.TrimPrefix(key, f.Prefix)) {
+			return f.Field, true
+		}
+	}
+	return FieldDef{}, false
 }
 
 func stringField(min, max int) func(any) bool {
@@ -170,13 +190,16 @@ func validateOp(op ClientOp) error {
 		return fail(400, "invalid_op", "fields 在 delete/restore 时必须为空")
 	}
 	for f, v := range op.Fields {
-		d, ok := def.Fields[f]
-		if op.Entity == "trip_rates" {
-			d = FieldDef{Nullable: true, Validate: validRate}
-			ok = foreignCurrency(f)
-		}
+		d, ok := def.field(f)
 		if !ok {
 			return fail(400, "invalid_op", "未知字段 "+f)
+		}
+		for _, dynamic := range def.Dynamic {
+			if strings.HasPrefix(f, dynamic.Prefix) && dynamic.Permission != nil {
+				if err := dynamic.Permission(op, strings.TrimPrefix(f, dynamic.Prefix)); err != nil {
+					return err
+				}
+			}
 		}
 		if v == nil && d.Nullable {
 			continue
@@ -193,10 +216,7 @@ func validateOp(op ClientOp) error {
 		}
 	}
 	for f, seq := range op.BaseSeq {
-		_, ok := def.Fields[f]
-		if op.Entity == "trip_rates" {
-			ok = foreignCurrency(f)
-		}
+		_, ok := def.field(f)
 		if !ok || seq < 0 {
 			return fail(400, "invalid_op", "baseSeq 字段非法 "+f)
 		}
@@ -311,7 +331,7 @@ func (s *Server) pushOne(ctx context.Context, trip uuid.UUID, op ClientOp) (OpRe
 		switch ae.code {
 		case "upgrade_required", "server_outdated":
 			return result, nil
-		case "invalid_op", "actor_mismatch", "entity_readonly", "entity_exists", "entity_not_found":
+		case "invalid_op", "actor_mismatch", "entity_readonly", "entity_exists", "entity_not_found", "forbidden_field", "poll_closed":
 			// 仅缓存确定性的业务拒绝，环境和版本变化后仍需重新评估。
 		default:
 			return OpResult{}, validation
@@ -384,6 +404,9 @@ func (s *Server) applyOp(ctx context.Context, q *db.Queries, op ClientOp, origin
 		}
 	}
 	if origin == "client" {
+		if err := s.validatePackingPollState(ctx, q, op, e, fields); err != nil {
+			return OpResult{}, err
+		}
 		if err := s.validateLedgerState(ctx, q, op, e, fields); err != nil {
 			return OpResult{}, err
 		}

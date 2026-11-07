@@ -839,6 +839,66 @@ paths:
         -
           bearerAuth: []
       description: "立即发送 seq；新操作后发送 seq；25 秒注释心跳。通知及心跳时重新校验会话，失效发送 unauthorized 并关闭；revoked / trip_deleted 后关闭。"
+  /api/trips/{tripId}/polls/{pollId}/close:
+    post:
+      operationId: closePoll
+      security: [{cookieAuth: []}, {bearerAuth: []}]
+      parameters:
+        - {name: tripId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: pollId, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '204': {description: 已关闭}
+        default: {$ref: '#/components/responses/Error'}
+  /api/me/packing-templates:
+    get:
+      operationId: listPackingTemplates
+      security: [{cookieAuth: []}, {bearerAuth: []}]
+      responses:
+        '200':
+          description: 用户模板
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/PackingTemplate'}}
+        default: {$ref: '#/components/responses/Error'}
+    post:
+      operationId: createPackingTemplate
+      security: [{cookieAuth: []}, {bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PackingTemplateBody'}
+      responses:
+        '200':
+          description: 已保存
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PackingTemplate'}
+        default: {$ref: '#/components/responses/Error'}
+  /api/me/packing-templates/{id}:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+    put:
+      operationId: updatePackingTemplate
+      security: [{cookieAuth: []}, {bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PackingTemplateBody'}
+      responses:
+        '200':
+          description: 已保存
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PackingTemplate'}
+        default: {$ref: '#/components/responses/Error'}
+    delete:
+      operationId: deletePackingTemplate
+      security: [{cookieAuth: []}, {bearerAuth: []}]
+      responses:
+        '204': {description: 已删除}
+        default: {$ref: '#/components/responses/Error'}
 components:
   securitySchemes:
     cookieAuth: {type: apiKey, in: cookie, name: wp_session}
@@ -854,6 +914,28 @@ components:
         application/json:
           schema: {$ref: '#/components/schemas/Error'}
   schemas:
+    PackingTemplateItem:
+      type: object
+      required: [name, category, scope]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 100}
+        category: {type: string, maxLength: 30}
+        scope: {type: string, enum: [personal, shared]}
+    PackingTemplateBody:
+      type: object
+      required: [name, items]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 100}
+        items: {type: array, maxItems: 200, items: {$ref: '#/components/schemas/PackingTemplateItem'}}
+    PackingTemplate:
+      type: object
+      required: [id, name, items, createdAt, updatedAt]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        items: {type: array, items: {$ref: '#/components/schemas/PackingTemplateItem'}}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
     Status: {"type":"object","required":["status"],"properties":{"status":{"type":"string"}}}
     Error: {"type":"object","required":["error"],"properties":{"error":{"type":"object","required":["code","message"],"properties":{"code":{"type":"string"},"message":{"type":"string","description":"中文提示"}}}}}
     User: {"type":"object","required":["id","email","nickname","avatarUrl","emailVerified"],"properties":{"id":{"type":"string","format":"uuid"},"email":{"type":"string"},"nickname":{"type":"string"},"avatarUrl":{"type":"string","nullable":true},"emailVerified":{"type":"boolean"}}}

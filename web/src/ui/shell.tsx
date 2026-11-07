@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { Link, NavLink, Outlet, useParams } from 'react-router'
 import { useEffect, useState } from 'react'
 import { RejectedChanges } from '@/features/itinerary'
+import { PackingReminder } from '@/features/packing-reminder'
 import { ResponsiveOverlay } from './responsive-overlay'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { database } from '@/data/db'
@@ -126,6 +127,7 @@ export function TripLayout() {
         })}
       </nav>
       <div className="trip-content">
+        {trip?.access === 'ok' && <PackingReminder trip={trip} />}
         <div className="page row">
           <Link to="/">我的行程</Link>
           <strong>{trip?.name}</strong>

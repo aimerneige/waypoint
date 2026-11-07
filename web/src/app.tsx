@@ -21,6 +21,8 @@ import { startSync } from './sync-runtime'
 import { Itinerary, TripHistory } from './features/itinerary'
 import { Wishlist } from './features/wishlist'
 import { Ledger } from './features/ledger'
+import { Packing } from './features/packing'
+import { Polls } from './features/polls'
 function Root() {
   const status = useSession((s) => s.status)
   const upgrade = useSyncStatus((s) => s.upgrade)
@@ -150,20 +152,19 @@ export const router = createBrowserRouter([
                   { path: 'ledger', element: <Ledger /> },
                   {
                     path: 'packing',
-                    element: <TripPlaceholder title="清单" />,
+                    element: <Packing />,
                   },
                   { path: 'more', element: <TripPlaceholder title="更多" /> },
                   { path: 'members', element: <Members /> },
                   { path: 'settings', element: <TripSettings /> },
-                  ...(
-                    [
-                      ['documents', '凭证'],
-                      ['polls', '投票'],
-                    ] as const
-                  ).map(([path, title]) => ({
-                    path,
-                    element: <TripPlaceholder title={title} />,
-                  })),
+                  { path: 'polls', element: <Polls /> },
+                  { path: 'polls/:pollId', element: <Polls /> },
+                  ...([['documents', '凭证']] as const).map(
+                    ([path, title]) => ({
+                      path,
+                      element: <TripPlaceholder title={title} />,
+                    }),
+                  ),
                 ],
               },
             ],

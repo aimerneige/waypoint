@@ -12,6 +12,7 @@ import { useOnline } from '@/ui/hooks'
 import { Button } from '@/ui/components/button'
 import { Card } from '@/ui/components/card'
 import { errorMessage } from './auth-utils'
+import { PackingReminder } from './packing-reminder'
 export function MyTrips() {
   const user = useSession((s) => s.currentUser)
   const online = useOnline()
@@ -31,6 +32,7 @@ export function MyTrips() {
       </div>
       {trips.map((trip) => (
         <Card key={trip.id}>
+          <PackingReminder trip={trip} />
           <Link to={`/trips/${trip.id}`}>
             <h2>{trip.name}</h2>
           </Link>

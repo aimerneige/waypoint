@@ -157,9 +157,19 @@ data: {}
 
 ## 拒绝码与客户端处理
 
+M3 保持 schemaVersion 1。注册表动态字段由前缀、键校验、值校验、权限函数定义：trip_rates 的非 CNY 币种键、packing_item 的 `checked.<UUID>`（bool）和 poll 的 `vote.<UUID>`（不重复的 optionId 数组）使用同一机制。个人键只能由对应 actor 写入，否则 `forbidden_field`。这些键与静态字段一样独立 LWW、记录 changes/冲突；单选票数组长度最多 1，撤票为空数组，选项必须存在、未删除且属于当前投票。
+
+行李完整状态规则见 D19。公共物品 `packedBy` 由服务端在 packed 修改时设为 actor；客户端提供时必须等于 actor 并同时提供 packed。poll.closedAt 不属于客户端可写字段。`POST /api/trips/{tripId}/polls/{pollId}/close` 在行程锁内生成 server update，创建者或 owner 可用，重复关闭不增加序号。服务端时间超过 deadline 或已有 closedAt 时，投票（包括撤票）、追加/恢复选项拒绝 `poll_closed`，持久化并幂等返回，客户端回滚且显示“投票已截止”。
+
+用户模板接口 `GET/POST /api/me/packing-templates`、`PUT/DELETE /api/me/packing-templates/{id}` 仅访问本人数据，不生成行程 op；最多 50 份、每份最多 200 项，写请求上限 256 KiB。前端按用户缓存，套用时本地事务批量创建 packing_item，网络同步沿用每批最多 200 条、逐条接受/拒绝的语义。
+
+`forbidden_field` 与 `poll_closed` 均为确定性业务拒绝，加入 rejected_ops 的持久化列表。
+
 | code | 含义 | 客户端处理 |
 | --- | --- | --- |
 | invalid_op | 未知实体/字段、类型/格式错误、ID 被其他用户或行程使用、路径与 op.tripId 不同 | 回滚并展示 message；修正后用新 opId |
+| forbidden_field | 写他人动态键或违反字段/实体修改权限 | 回滚，显示无权限，修正后用新 opId |
+| poll_closed | 服务端时间超过截止时间，或投票已关闭 | 回滚，进入未生效列表，显示“投票已截止” |
 | actor_mismatch | actorUserId 与会话不符 | 停止跨账号队列提交，校验本地用户隔离 |
 | entity_readonly | 客户端试图写 trip/member | 回滚；使用在线管理接口 |
 | entity_exists | create 的 entityId 已存在，包括软删除 | 拉取确认；不能用 create 覆盖 |
@@ -183,7 +193,7 @@ data: {}
 | rate_limited | 账号相关接口限流，HTTP 429 | 按 Retry-After 等待后重试 |
 | not_found / method_not_allowed | 路径/方法不支持，HTTP 404/405 | 检查客户端接口版本 |
 
-只有确定性业务拒绝（invalid_op、actor_mismatch、entity_readonly、entity_exists、entity_not_found）进入 rejected_ops。版本拒绝与升级链缺失等内部错误不持久化；迁移会清除旧实现已缓存的版本拒绝。整体鉴权、CSRF、格式及大小错误不代表该请求的全部操作都已经写入拒绝表。账号注册、密码和邮件令牌的专用错误沿用 M0.2 契约。
+只有确定性业务拒绝（invalid_op、actor_mismatch、entity_readonly、entity_exists、entity_not_found、forbidden_field、poll_closed）进入 rejected_ops。版本拒绝与升级链缺失等内部错误不持久化；迁移会清除旧实现已缓存的版本拒绝。整体鉴权、CSRF、格式及大小错误不代表该请求的全部操作都已经写入拒绝表。账号注册、密码和邮件令牌的专用错误沿用 M0.2 契约。
 
 ## 版本策略与验收
 

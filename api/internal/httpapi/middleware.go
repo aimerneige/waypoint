@@ -182,6 +182,9 @@ func requireLogin(next StrictHandlerFunc, operation string) StrictHandlerFunc {
 
 func isBodyTooLarge(err error) bool { var e *http.MaxBytesError; return errors.As(err, &e) }
 func (s *Server) bodyLimit(r *http.Request) int64 {
+	if strings.HasPrefix(r.URL.Path, "/api/me/packing-templates") {
+		return 256 * 1024
+	}
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 	if r.Method == http.MethodPost && len(parts) == 4 && parts[0] == "api" && parts[1] == "trips" {
 		if parts[3] == "ops" {

@@ -4,6 +4,7 @@ import { Bell, GripVertical } from 'lucide-react'
 import { ActionMenu } from '@/ui/action-menu'
 import { ListCard } from '@/ui/list-card'
 import { LedgerRetry } from './ledger'
+import { PackingPollsRetry } from './packing-polls-retry'
 import {
   DndContext,
   MouseSensor,
@@ -100,8 +101,21 @@ const labels: Record<string, string> = {
   split: '分摊',
   fromUserId: '转出成员',
   toUserId: '收款成员',
+  scope: '物品类型',
+  assigneeUserId: '负责人',
+  packed: '已装',
+  packedBy: '装箱人',
+  question: '问题',
+  multiChoice: '允许多选',
+  deadline: '截止时间',
+  closedAt: '关闭时间',
+  pollId: '所属投票',
+  text: '选项内容',
 }
 const entityLabels: Record<string, string> = {
+  packing_item: '行李物品',
+  poll: '投票',
+  poll_option: '投票选项',
   expense: '账目',
   exchange: '换汇',
   settlement_transfer: '结算转账',
@@ -882,6 +896,8 @@ function NoticeList({ db, notices }: { db: Database; notices: Notice[] }) {
   )
 }
 const rejectionReasons: Record<string, string> = {
+  poll_closed: '投票已截止',
+  forbidden_field: '没有权限修改此字段',
   invalid_op: '修改内容不合法，请检查字段格式与长度',
   actor_mismatch: '操作用户与当前账户不一致',
   entity_readonly: '该实体只允许通过在线管理修改',
@@ -917,7 +933,25 @@ export function RejectedChanges() {
                   entity.tripId === row.tripId &&
                   entity.entityId === row.entityId,
               )?.server?.fields.title ??
+                entities.find(
+                  (entity) =>
+                    entity.tripId === row.tripId &&
+                    entity.entityId === row.entityId,
+                )?.server?.fields.question ??
+                entities.find(
+                  (entity) =>
+                    entity.tripId === row.tripId &&
+                    entity.entityId === row.entityId,
+                )?.server?.fields.name ??
+                entities.find(
+                  (entity) =>
+                    entity.tripId === row.tripId &&
+                    entity.entityId === row.entityId,
+                )?.server?.fields.text ??
                 row.fields.title ??
+                row.fields.question ??
+                row.fields.name ??
+                row.fields.text ??
                 '未命名',
             )}
             」 ·{' '}
@@ -932,7 +966,31 @@ export function RejectedChanges() {
           </p>
           {Object.entries(row.fields).map(([key, v]) => (
             <p key={key}>
-              {labels[key] ?? key}：{value(v)}
+              {key.startsWith('vote.')
+                ? '我的投票'
+                : key.startsWith('checked.')
+                  ? '我的勾选'
+                  : key === 'name' && row.entity === 'packing_item'
+                    ? '物品名称'
+                    : (labels[key] ?? key)}
+              ：
+              {key.startsWith('vote.') && Array.isArray(v)
+                ? v
+                    .map((id) =>
+                      String(
+                        entities.find(
+                          (entity) =>
+                            entity.tripId === row.tripId &&
+                            entity.entityId === id,
+                        )?.view?.fields.text ?? '已删除选项',
+                      ),
+                    )
+                    .join('、') || '撤票'
+                : typeof v === 'boolean'
+                  ? v
+                    ? '是'
+                    : '否'
+                  : value(v)}
             </p>
           ))}
           <p role="alert">
@@ -959,8 +1017,19 @@ export function RejectedChanges() {
       >
         {retry &&
           trip &&
-          (retry.entity === 'wish_item' &&
+          (['packing_item', 'poll', 'poll_option'].includes(retry.entity) &&
           (retry.kind === 'update' || retry.kind === 'create') ? (
+            <PackingPollsRetry
+              key={retry.opId}
+              db={db}
+              retry={retry}
+              done={async () => {
+                await db.rejected.delete(retry.opId)
+                setRetry(null)
+              }}
+            />
+          ) : retry.entity === 'wish_item' &&
+            (retry.kind === 'update' || retry.kind === 'create') ? (
             <WishEditor
               db={db}
               trip={trip}
@@ -1108,7 +1177,11 @@ export function HistoryList({
             <p key={field}>
               {field === 'sortOrder'
                 ? '调整了顺序'
-                : `${field === 'endDate' && op.entity === 'itinerary_item' ? '到达日期' : (labels[field] ?? field)}：${historyValue(op, field, change.old)} → ${historyValue(op, field, change.new)}`}
+                : field.startsWith('checked.')
+                  ? `${name(field.slice(8))} ${change.new ? '勾选了' : '取消勾选'} ${String(states.find((s) => s.entityId === op.entityId)?.view?.fields.name ?? '物品')}`
+                  : field.startsWith('vote.')
+                    ? `${name(field.slice(5))} ${Array.isArray(change.new) && change.new.length ? `投给了 ${change.new.map((id) => String(states.find((s) => s.entityId === id)?.view?.fields.text ?? '已删除选项')).join('、')}` : '撤回了投票'}`
+                    : `${field === 'name' && op.entity === 'packing_item' ? '物品名称' : field === 'ownerUserId' && op.entity === 'packing_item' ? '仅此成员需要带' : field === 'endDate' && op.entity === 'itinerary_item' ? '到达日期' : (labels[field] ?? field)}：${historyValue(op, field, change.old)} → ${historyValue(op, field, change.new)}`}
             </p>
           ))}
         </Card>

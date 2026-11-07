@@ -125,9 +125,10 @@ op {
 | Expense | 见 4.3 |
 | SettlementTransfer | fromUserId, toUserId, amountCny, date, note?；创建后可删除/恢复，不可 update |
 | PackingTemplate | name, items[]（系统预设 + 用户保存） |
-| PackingItem | name, scope: personal/shared, ownerMemberId（personal）, assigneeMemberId（shared）, checkedBy |
+| PackingItem | name, category?, scope: personal/shared, ownerUserId?（personal，仅此成员需要带）, assigneeUserId（shared，当前成员必填）, packed?（shared，负责人/owner 可写）, packedBy?（服务端按 actor 写入）, checked.<userId>（personal，仅本人键可写）, sortOrder? |
 | Voucher | type（机票/酒店/门票/签证/保险/其他）, title, fileRef, mime, size, visibility: trip/private, uploadedBy, linkedItineraryIds |
-| Poll / PollOption / Vote | question, multiChoice, deadline?, closedAt?；vote: memberId, optionIds |
+| Poll | question, multiChoice, deadline?（RFC3339）, closedAt?（仅服务器）, vote.<userId>（optionId 数组，仅本人键可写；空数组撤票）；问题/类型/截止仅创建者可改；创建者/owner 可删与关闭 |
+| PollOption | pollId, text, sortOrder?；成员可追加，仅选项创建者或投票创建者可改/删；截止后不可追加 |
 
 金额一律以**整数最小货币单位**存储（CNY 分、JPY 元、USD 分…，按 ISO 4217 小数位）。汇率以十进制字符串存储，计算用整数/高精度小数，禁止浮点直接参与金额计算。
 
@@ -187,7 +188,7 @@ op {
 
 ### 4.5 行李清单
 - 模板：系统预设（如"海岛""滑雪""城市观光""证件类"）+ 用户可把当前清单另存为模板；套用模板时选择每项放入个人或公共。
-- 个人物品：每个成员各自一份勾选状态，只有本人可勾选。
+- 个人物品：默认每个成员都需要带，各自一份 `checked.<userId>` 勾选状态，只有本人可写自己的键。指定 `ownerUserId` 时仅该成员需要带，仅本人显示与勾选。
 - 公共物品：必须指定一名负责人，仅负责人（或 owner）可勾选"已装"。
 - 出发提醒：出发前 3 天起，打开应用时向负责人显示"你还有 N 件公共物品未装"横幅；个人物品同理。Web Push 为 **v2 可选**，不在首版范围。
 

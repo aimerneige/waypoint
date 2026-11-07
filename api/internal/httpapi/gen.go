@@ -124,6 +124,24 @@ func (e OpResultStatus) Valid() bool {
 	}
 }
 
+// Defines values for PackingTemplateItemScope.
+const (
+	Personal PackingTemplateItemScope = "personal"
+	Shared   PackingTemplateItemScope = "shared"
+)
+
+// Valid indicates whether the value is a known member of the PackingTemplateItemScope enum.
+func (e PackingTemplateItemScope) Valid() bool {
+	switch e {
+	case Personal:
+		return true
+	case Shared:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RegisterBodyTokenDelivery.
 const (
 	RegisterBodyTokenDeliveryBearer RegisterBodyTokenDelivery = "bearer"
@@ -315,6 +333,31 @@ type OpResult struct {
 
 // OpResultStatus defines model for OpResult.Status.
 type OpResultStatus string
+
+// PackingTemplate defines model for PackingTemplate.
+type PackingTemplate struct {
+	CreatedAt time.Time             `json:"createdAt"`
+	Id        openapi_types.UUID    `json:"id"`
+	Items     []PackingTemplateItem `json:"items"`
+	Name      string                `json:"name"`
+	UpdatedAt time.Time             `json:"updatedAt"`
+}
+
+// PackingTemplateBody defines model for PackingTemplateBody.
+type PackingTemplateBody struct {
+	Items []PackingTemplateItem `json:"items"`
+	Name  string                `json:"name"`
+}
+
+// PackingTemplateItem defines model for PackingTemplateItem.
+type PackingTemplateItem struct {
+	Category string                   `json:"category"`
+	Name     string                   `json:"name"`
+	Scope    PackingTemplateItemScope `json:"scope"`
+}
+
+// PackingTemplateItemScope defines model for PackingTemplateItem.Scope.
+type PackingTemplateItemScope string
 
 // PullResult defines model for PullResult.
 type PullResult struct {
@@ -508,6 +551,12 @@ type VerifyEmailJSONRequestBody = VerifyEmailBody
 // UpdateMeJSONRequestBody defines body for UpdateMe for application/json ContentType.
 type UpdateMeJSONRequestBody = UpdateMeBody
 
+// CreatePackingTemplateJSONRequestBody defines body for CreatePackingTemplate for application/json ContentType.
+type CreatePackingTemplateJSONRequestBody = PackingTemplateBody
+
+// UpdatePackingTemplateJSONRequestBody defines body for UpdatePackingTemplate for application/json ContentType.
+type UpdatePackingTemplateJSONRequestBody = PackingTemplateBody
+
 // CreateTripJSONRequestBody defines body for CreateTrip for application/json ContentType.
 type CreateTripJSONRequestBody = TripBody
 
@@ -568,6 +617,18 @@ type ServerInterface interface {
 	// (PATCH /api/me)
 	UpdateMe(w http.ResponseWriter, r *http.Request, params UpdateMeParams)
 
+	// (GET /api/me/packing-templates)
+	ListPackingTemplates(w http.ResponseWriter, r *http.Request)
+
+	// (POST /api/me/packing-templates)
+	CreatePackingTemplate(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /api/me/packing-templates/{id})
+	DeletePackingTemplate(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
+
+	// (PUT /api/me/packing-templates/{id})
+	UpdatePackingTemplate(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
+
 	// (GET /api/readyz)
 	Readyz(w http.ResponseWriter, r *http.Request)
 
@@ -612,6 +673,9 @@ type ServerInterface interface {
 
 	// (POST /api/trips/{tripId}/ops)
 	PushOps(w http.ResponseWriter, r *http.Request, tripId openapi_types.UUID)
+
+	// (POST /api/trips/{tripId}/polls/{pollId}/close)
+	ClosePoll(w http.ResponseWriter, r *http.Request, tripId openapi_types.UUID, pollId openapi_types.UUID)
 
 	// (GET /api/trips/{tripId}/snapshot)
 	GetSnapshot(w http.ResponseWriter, r *http.Request, tripId openapi_types.UUID)
@@ -694,6 +758,26 @@ func (_ Unimplemented) UpdateMe(w http.ResponseWriter, r *http.Request, params U
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (GET /api/me/packing-templates)
+func (_ Unimplemented) ListPackingTemplates(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /api/me/packing-templates)
+func (_ Unimplemented) CreatePackingTemplate(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (DELETE /api/me/packing-templates/{id})
+func (_ Unimplemented) DeletePackingTemplate(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /api/me/packing-templates/{id})
+func (_ Unimplemented) UpdatePackingTemplate(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /api/readyz)
 func (_ Unimplemented) Readyz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -766,6 +850,11 @@ func (_ Unimplemented) PullOps(w http.ResponseWriter, r *http.Request, tripId op
 
 // (POST /api/trips/{tripId}/ops)
 func (_ Unimplemented) PushOps(w http.ResponseWriter, r *http.Request, tripId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /api/trips/{tripId}/polls/{pollId}/close)
+func (_ Unimplemented) ClosePoll(w http.ResponseWriter, r *http.Request, tripId openapi_types.UUID, pollId openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1251,6 +1340,86 @@ func (siw *ServerInterfaceWrapper) UpdateMe(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
+// ListPackingTemplates operation middleware
+func (siw *ServerInterfaceWrapper) ListPackingTemplates(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPackingTemplates(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePackingTemplate operation middleware
+func (siw *ServerInterfaceWrapper) CreatePackingTemplate(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePackingTemplate(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeletePackingTemplate operation middleware
+func (siw *ServerInterfaceWrapper) DeletePackingTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePackingTemplate(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdatePackingTemplate operation middleware
+func (siw *ServerInterfaceWrapper) UpdatePackingTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdatePackingTemplate(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Readyz operation middleware
 func (siw *ServerInterfaceWrapper) Readyz(w http.ResponseWriter, r *http.Request) {
 
@@ -1707,6 +1876,41 @@ func (siw *ServerInterfaceWrapper) PushOps(w http.ResponseWriter, r *http.Reques
 	handler.ServeHTTP(w, r)
 }
 
+// ClosePoll operation middleware
+func (siw *ServerInterfaceWrapper) ClosePoll(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tripId" -------------
+	var tripId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tripId", chi.URLParam(r, "tripId"), &tripId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tripId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "pollId" -------------
+	var pollId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pollId", chi.URLParam(r, "pollId"), &pollId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pollId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ClosePoll(w, r, tripId, pollId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetSnapshot operation middleware
 func (siw *ServerInterfaceWrapper) GetSnapshot(w http.ResponseWriter, r *http.Request) {
 
@@ -1964,6 +2168,21 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/trips/{tripId}/events", wrapper.TripEvents)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/trips/{tripId}/polls/{pollId}/close", wrapper.ClosePoll)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/me/packing-templates", wrapper.ListPackingTemplates)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/me/packing-templates", wrapper.CreatePackingTemplate)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/api/me/packing-templates/{id}", wrapper.DeletePackingTemplate)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/api/me/packing-templates/{id}", wrapper.UpdatePackingTemplate)
 	})
 
 	return r
@@ -4245,6 +4464,172 @@ func (response UpdateMedefaultJSONResponse) VisitUpdateMeResponse(w http.Respons
 	return err
 }
 
+type ListPackingTemplatesRequestObject struct {
+}
+
+type ListPackingTemplatesResponseObject interface {
+	VisitListPackingTemplatesResponse(w http.ResponseWriter) error
+}
+
+type ListPackingTemplates200JSONResponse []PackingTemplate
+
+func (response ListPackingTemplates200JSONResponse) VisitListPackingTemplatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPackingTemplatesdefaultJSONResponse struct {
+	Body       Error
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ListPackingTemplatesdefaultJSONResponse) VisitListPackingTemplatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePackingTemplateRequestObject struct {
+	Body *CreatePackingTemplateJSONRequestBody
+}
+
+type CreatePackingTemplateResponseObject interface {
+	VisitCreatePackingTemplateResponse(w http.ResponseWriter) error
+}
+
+type CreatePackingTemplate200JSONResponse PackingTemplate
+
+func (response CreatePackingTemplate200JSONResponse) VisitCreatePackingTemplateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePackingTemplatedefaultJSONResponse struct {
+	Body       Error
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response CreatePackingTemplatedefaultJSONResponse) VisitCreatePackingTemplateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeletePackingTemplateRequestObject struct {
+	Id openapi_types.UUID `json:"id"`
+}
+
+type DeletePackingTemplateResponseObject interface {
+	VisitDeletePackingTemplateResponse(w http.ResponseWriter) error
+}
+
+type DeletePackingTemplate204Response struct {
+}
+
+func (response DeletePackingTemplate204Response) VisitDeletePackingTemplateResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeletePackingTemplatedefaultJSONResponse struct {
+	Body       Error
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response DeletePackingTemplatedefaultJSONResponse) VisitDeletePackingTemplateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdatePackingTemplateRequestObject struct {
+	Id   openapi_types.UUID `json:"id"`
+	Body *UpdatePackingTemplateJSONRequestBody
+}
+
+type UpdatePackingTemplateResponseObject interface {
+	VisitUpdatePackingTemplateResponse(w http.ResponseWriter) error
+}
+
+type UpdatePackingTemplate200JSONResponse PackingTemplate
+
+func (response UpdatePackingTemplate200JSONResponse) VisitUpdatePackingTemplateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdatePackingTemplatedefaultJSONResponse struct {
+	Body       Error
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response UpdatePackingTemplatedefaultJSONResponse) VisitUpdatePackingTemplateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ReadyzRequestObject struct {
 }
 
@@ -4990,6 +5375,44 @@ func (response PushOpsdefaultJSONResponse) VisitPushOpsResponse(w http.ResponseW
 	return err
 }
 
+type ClosePollRequestObject struct {
+	TripId openapi_types.UUID `json:"tripId"`
+	PollId openapi_types.UUID `json:"pollId"`
+}
+
+type ClosePollResponseObject interface {
+	VisitClosePollResponse(w http.ResponseWriter) error
+}
+
+type ClosePoll204Response struct {
+}
+
+func (response ClosePoll204Response) VisitClosePollResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type ClosePolldefaultJSONResponse struct {
+	Body       Error
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ClosePolldefaultJSONResponse) VisitClosePollResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetSnapshotRequestObject struct {
 	TripId openapi_types.UUID `json:"tripId"`
 }
@@ -5122,6 +5545,18 @@ type StrictServerInterface interface {
 	// (PATCH /api/me)
 	UpdateMe(ctx context.Context, request UpdateMeRequestObject) (UpdateMeResponseObject, error)
 
+	// (GET /api/me/packing-templates)
+	ListPackingTemplates(ctx context.Context, request ListPackingTemplatesRequestObject) (ListPackingTemplatesResponseObject, error)
+
+	// (POST /api/me/packing-templates)
+	CreatePackingTemplate(ctx context.Context, request CreatePackingTemplateRequestObject) (CreatePackingTemplateResponseObject, error)
+
+	// (DELETE /api/me/packing-templates/{id})
+	DeletePackingTemplate(ctx context.Context, request DeletePackingTemplateRequestObject) (DeletePackingTemplateResponseObject, error)
+
+	// (PUT /api/me/packing-templates/{id})
+	UpdatePackingTemplate(ctx context.Context, request UpdatePackingTemplateRequestObject) (UpdatePackingTemplateResponseObject, error)
+
 	// (GET /api/readyz)
 	Readyz(ctx context.Context, request ReadyzRequestObject) (ReadyzResponseObject, error)
 
@@ -5166,6 +5601,9 @@ type StrictServerInterface interface {
 
 	// (POST /api/trips/{tripId}/ops)
 	PushOps(ctx context.Context, request PushOpsRequestObject) (PushOpsResponseObject, error)
+
+	// (POST /api/trips/{tripId}/polls/{pollId}/close)
+	ClosePoll(ctx context.Context, request ClosePollRequestObject) (ClosePollResponseObject, error)
 
 	// (GET /api/trips/{tripId}/snapshot)
 	GetSnapshot(ctx context.Context, request GetSnapshotRequestObject) (GetSnapshotResponseObject, error)
@@ -5620,6 +6058,120 @@ func (sh *strictHandler) UpdateMe(w http.ResponseWriter, r *http.Request, params
 	}
 }
 
+// ListPackingTemplates operation middleware
+func (sh *strictHandler) ListPackingTemplates(w http.ResponseWriter, r *http.Request) {
+	var request ListPackingTemplatesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPackingTemplates(ctx, request.(ListPackingTemplatesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPackingTemplates")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPackingTemplatesResponseObject); ok {
+		if err := validResponse.VisitListPackingTemplatesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreatePackingTemplate operation middleware
+func (sh *strictHandler) CreatePackingTemplate(w http.ResponseWriter, r *http.Request) {
+	var request CreatePackingTemplateRequestObject
+
+	var body CreatePackingTemplateJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreatePackingTemplate(ctx, request.(CreatePackingTemplateRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreatePackingTemplate")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreatePackingTemplateResponseObject); ok {
+		if err := validResponse.VisitCreatePackingTemplateResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeletePackingTemplate operation middleware
+func (sh *strictHandler) DeletePackingTemplate(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	var request DeletePackingTemplateRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeletePackingTemplate(ctx, request.(DeletePackingTemplateRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeletePackingTemplate")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeletePackingTemplateResponseObject); ok {
+		if err := validResponse.VisitDeletePackingTemplateResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdatePackingTemplate operation middleware
+func (sh *strictHandler) UpdatePackingTemplate(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	var request UpdatePackingTemplateRequestObject
+
+	request.Id = id
+
+	var body UpdatePackingTemplateJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdatePackingTemplate(ctx, request.(UpdatePackingTemplateRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdatePackingTemplate")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdatePackingTemplateResponseObject); ok {
+		if err := validResponse.VisitUpdatePackingTemplateResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Readyz operation middleware
 func (sh *strictHandler) Readyz(w http.ResponseWriter, r *http.Request) {
 	var request ReadyzRequestObject
@@ -6029,6 +6581,33 @@ func (sh *strictHandler) PushOps(w http.ResponseWriter, r *http.Request, tripId 
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PushOpsResponseObject); ok {
 		if err := validResponse.VisitPushOpsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ClosePoll operation middleware
+func (sh *strictHandler) ClosePoll(w http.ResponseWriter, r *http.Request, tripId openapi_types.UUID, pollId openapi_types.UUID) {
+	var request ClosePollRequestObject
+
+	request.TripId = tripId
+	request.PollId = pollId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ClosePoll(ctx, request.(ClosePollRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ClosePoll")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ClosePollResponseObject); ok {
+		if err := validResponse.VisitClosePollResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

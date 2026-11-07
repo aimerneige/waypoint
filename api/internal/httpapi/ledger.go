@@ -80,7 +80,7 @@ func init() {
 	entities["settlement_transfer"] = EntityDef{Name: "settlement_transfer", Fields: map[string]FieldDef{
 		"fromUserId": {Required: true, Validate: validUUID}, "toUserId": {Required: true, Validate: validUUID}, "amountCny": {Required: true, Validate: positiveMoney}, "date": {Required: true, Validate: validDate}, "note": {Nullable: true, Validate: stringField(0, 500)},
 	}, Kinds: map[ClientOpKind]bool{ClientOpKindCreate: true, ClientOpKindDelete: true, ClientOpKindRestore: true}, Permission: permission}
-	entities["trip_rates"] = EntityDef{Name: "trip_rates", Kinds: map[ClientOpKind]bool{ClientOpKindUpdate: true}, Permission: permission}
+	entities["trip_rates"] = EntityDef{Name: "trip_rates", Kinds: map[ClientOpKind]bool{ClientOpKindUpdate: true}, Permission: permission, Dynamic: []DynamicFieldDef{{Key: func(k string) bool { return foreignCurrency(k) }, Field: FieldDef{Nullable: true, Validate: validRate}}}}
 }
 
 func (s *Server) validateLedgerState(ctx context.Context, q *db.Queries, op ClientOp, e db.EntityState, fields map[string]any) error {

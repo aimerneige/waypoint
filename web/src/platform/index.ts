@@ -15,11 +15,7 @@ export const storage: FileStorage = {
   },
   async remove() {},
 }
-export interface Notifications {
-  schedule(message: string, at: Date): Promise<void>
-}
-// TODO：提醒由应用内横幅消费，原生平台实现本地定时通知。
-export const notify: Notifications = { async schedule() {} }
+export { notify, type Notifications } from './notify'
 export interface Sharing {
   share(data: ShareData): Promise<void>
 }

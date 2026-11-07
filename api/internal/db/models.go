@@ -75,6 +75,15 @@ type Op struct {
 	VisibleToUserID pgtype.UUID
 }
 
+type PackingTemplate struct {
+	ID        pgtype.UUID
+	UserID    pgtype.UUID
+	Name      string
+	Items     []byte
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
 type RejectedOp struct {
 	OpID        pgtype.UUID
 	TripID      pgtype.UUID
