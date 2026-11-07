@@ -34,6 +34,7 @@ export function ResponsiveOverlay({
   description,
   children,
   footer,
+  fullHeight = false,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -41,6 +42,7 @@ export function ResponsiveOverlay({
   description?: string
   children: ReactNode
   footer?: ReactNode
+  fullHeight?: boolean
 }) {
   const desktop = useMedia('(min-width: 640px)')
   const depth = useContext(OverlayDepth)
@@ -80,7 +82,12 @@ export function ResponsiveOverlay({
         <Content
           aria-describedby={description ? descriptionId : undefined}
           data-overlay={desktop ? 'dialog' : 'drawer'}
-          style={{ zIndex: 31 + depth * 2 }}
+          style={{
+            zIndex: 31 + depth * 2,
+            ...(!desktop && fullHeight
+              ? { height: '96dvh', maxHeight: '96dvh' }
+              : {}),
+          }}
         >
           <div className="stack">
             <Title asChild>

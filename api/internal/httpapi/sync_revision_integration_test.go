@@ -61,7 +61,7 @@ func TestSSESessionInvalidationIntegration(t *testing.T) {
 			}
 			scanner := bufio.NewScanner(resp.Body)
 			// 完整读完首个事件，后续不能再收到普通 seq 或心跳。
-			for _, want := range []string{"event: seq", "data: {\"latestSeq\":3}", ""} {
+			for _, want := range []string{"event: seq", "data: {\"latestSeq\":4}", ""} {
 				if !scanner.Scan() || scanner.Text() != want {
 					t.Fatalf("initial SSE: %q, %v", scanner.Text(), scanner.Err())
 				}

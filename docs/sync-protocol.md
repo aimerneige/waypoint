@@ -23,7 +23,9 @@
 
 `actorUserId` 必须等于会话用户，`tripId` 必须等于请求路径。时间只供展示，所有排序与冲突判定只使用 `serverSeq`。
 
-每个行程的序号独立，从 1 开始；数据库事务先锁定行程行，再分配 `last_seq + 1`。拒绝、重复和回滚不消耗序号；接受的无变化操作仍记录并消耗一个序号。新行程已有 `trip create` 和创建者 `member create`，因此创建响应的 `latestSeq=2`。所有客户端操作与服务器操作共用这一序列。
+每个行程的序号独立，从 1 开始；数据库事务先锁定行程行，再分配 `last_seq + 1`。拒绝、重复和回滚不消耗序号；接受的无变化操作仍记录并消耗一个序号。新行程已有 `trip create`、创建者 `member create` 和 `trip_rates create`，因此创建响应的 `latestSeq=3`。所有客户端操作与服务器操作共用这一序列。
+
+M2 保持 schemaVersion 1，增加 expense、exchange、settlement_transfer 与 trip_rates。字段与完整状态规则见 `docs/tasks/m2-ledger-settlement.md` 第 2 节。默认汇率仅客户端 update；换汇只允许创建者修改；现金账目的金额、币种、方式及付款人只允许原付款人修改。旧行程补建 trip_rates 时写入 server create 操作并递增序号。
 
 服务端全局序列无空洞，但用户可见的序列可以跳号：`visible_to_user_id` 非空的操作仅该用户可见。不能用序号是否连续判断丢失。M0 没有可创建私有实体的客户端接口，此字段为 M4 预留。
 

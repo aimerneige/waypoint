@@ -80,29 +80,29 @@ func TestSyncProtocolIntegration(t *testing.T) {
 	id := uuid.NewString()
 	create := f.op(f.userA, id, "create", map[string]any{"title": "原始", "date": "2026-12-01", "place": nil}, nil)
 	r := f.push(f.a, create)[0]
-	if r.Status != Accepted || *r.ServerSeq != 4 {
+	if r.Status != Accepted || *r.ServerSeq != 5 {
 		t.Fatalf("create: %+v", r)
 	}
 	duplicate := f.push(f.a, create)[0]
-	if duplicate.Status != Duplicate || *duplicate.ServerSeq != 4 || f.pull(0, 500).LatestSeq != 4 {
+	if duplicate.Status != Duplicate || *duplicate.ServerSeq != 5 || f.pull(0, 500).LatestSeq != 5 {
 		t.Fatalf("duplicate: %+v", duplicate)
 	}
-	a := f.op(f.userA, id, "update", map[string]any{"title": "A"}, map[string]int64{"title": 4})
-	b := f.op(f.userB, id, "update", map[string]any{"title": "B"}, map[string]int64{"title": 4})
+	a := f.op(f.userA, id, "update", map[string]any{"title": "A"}, map[string]int64{"title": 5})
+	b := f.op(f.userB, id, "update", map[string]any{"title": "B"}, map[string]int64{"title": 5})
 	f.push(f.a, a)
 	r = f.push(f.b, b)[0]
 	if r.Status != Accepted || len(*r.Conflicts) != 1 {
 		t.Fatalf("conflict: %+v", r)
 	}
 	c := (*r.Conflicts)[0]
-	if c.OverwrittenValue.GetOrEmpty() != "A" || c.OverwrittenSeq != 5 || c.OverwrittenActor.String() != f.userA {
+	if c.OverwrittenValue.GetOrEmpty() != "A" || c.OverwrittenSeq != 6 || c.OverwrittenActor.String() != f.userA {
 		t.Fatalf("conflict: %+v", c)
 	}
 	r = f.push(f.a, f.op(f.userA, id, "update", map[string]any{"title": "B"}, nil))[0]
 	if len(*r.Conflicts) != 0 {
 		t.Fatal("same value conflicts")
 	}
-	r = f.push(f.a, f.op(f.userA, id, "update", map[string]any{"place": "东京"}, map[string]int64{"place": 4}))[0]
+	r = f.push(f.a, f.op(f.userA, id, "update", map[string]any{"place": "东京"}, map[string]int64{"place": 5}))[0]
 	if len(*r.Conflicts) != 0 {
 		t.Fatal("independent field conflicts")
 	}
@@ -209,8 +209,8 @@ func TestSyncVisibilityIntegration(t *testing.T) {
 	f.exec("UPDATE ops SET visible_to_user_id=$1 WHERE trip_id=$2 AND server_seq=$3", f.userB, f.trip, *r.ServerSeq)
 	f.exec("UPDATE entity_state SET visible_to_user_id=$1 WHERE trip_id=$2 AND entity_id=$3", f.userB, f.trip, private)
 	f.push(f.a, f.op(f.userA, public, "create", map[string]any{"title": "公共", "date": "2026-12-01"}, nil))
-	page := f.pull(3, 1)
-	if len(page.Ops) != 1 || page.Ops[0].EntityId.String() != public || page.HasMore || page.LatestSeq != 5 {
+	page := f.pull(4, 1)
+	if len(page.Ops) != 1 || page.Ops[0].EntityId.String() != public || page.HasMore || page.LatestSeq != 6 {
 		t.Fatalf("visibility page: %+v", page)
 	}
 	for _, e := range f.snapshot().Entities {
@@ -223,7 +223,7 @@ func TestSyncVisibilityIntegration(t *testing.T) {
 	if len(body["ops"].([]any)) != 0 {
 		t.Fatal("private history leaked")
 	}
-	w = f.call("GET", "/api/trips/"+f.trip+"/ops?after=3", nil, f.b, false, false)
+	w = f.call("GET", "/api/trips/"+f.trip+"/ops?after=4", nil, f.b, false, false)
 	body = f.expect(w, 200)
 	if len(body["ops"].([]any)) != 2 {
 		t.Fatal("private owner cannot pull")
@@ -296,7 +296,7 @@ func TestTripLifecycleIntegration(t *testing.T) {
 	}
 	f.expect(f.call("POST", path+"/leave", nil, f.a, false, false), 200)
 	ops := f.expect(f.call("GET", path+"/ops", nil, f.b, false, false), 200)["ops"].([]any)
-	want := []struct{ entity, kind string }{{"trip", "create"}, {"member", "create"}, {"member", "create"}, {"trip", "update"}, {"member", "update"}, {"trip", "update"}, {"member", "update"}, {"member", "update"}, {"member", "update"}, {"member", "restore"}, {"member", "update"}, {"member", "update"}}
+	want := []struct{ entity, kind string }{{"trip", "create"}, {"member", "create"}, {"trip_rates", "create"}, {"member", "create"}, {"trip", "update"}, {"member", "update"}, {"trip", "update"}, {"member", "update"}, {"member", "update"}, {"member", "update"}, {"member", "restore"}, {"member", "update"}, {"member", "update"}}
 	if len(ops) != len(want) {
 		t.Fatalf("server ops: %d want %d", len(ops), len(want))
 	}
@@ -306,7 +306,7 @@ func TestTripLifecycleIntegration(t *testing.T) {
 			t.Fatalf("server op %d: %v", i, op)
 		}
 	}
-	if ops[5].(map[string]any)["fields"].(map[string]any)["ownerId"] != f.userB {
+	if ops[6].(map[string]any)["fields"].(map[string]any)["ownerId"] != f.userB {
 		t.Fatal("transfer owner op missing")
 	}
 	f.expect(f.call("DELETE", path, nil, f.b, false, false), 200)

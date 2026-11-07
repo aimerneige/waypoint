@@ -147,6 +147,8 @@ test('邀请加入、成员同步、离线数据与移除', async ({
   await expect(invite).toBeVisible()
   const url = await invite.inputValue()
   const guestContext = await browser.newContext({
+    locale: 'zh-CN',
+    timezoneId: 'Asia/Shanghai',
     baseURL: info.project.use.baseURL ?? 'http://localhost:8088',
     viewport: info.project.use.viewport,
   })

@@ -40,31 +40,39 @@ export function SyncStatus() {
           : state === 'syncing' || pending > 0
             ? '同步中'
             : '已同步'
+  const short = !online
+    ? `离线·${pending}`
+    : rejected > 0 || state === 'pending'
+      ? `未生效·${rejected}`
+      : text
   return (
     <>
       <button
         type="button"
         role="status"
-        aria-label="同步状态"
-        className="row muted"
+        aria-label={`同步状态：${text}`}
+        title={text}
+        className="row muted sync-status"
         onClick={() => {
-          if (rejected) setOpen(true)
+          setOpen(true)
         }}
       >
         <CloudCheck size={16} />
-        {text}
+        <span aria-label={text}>{short}</span>
       </button>
       <ResponsiveOverlay
         open={open}
         onOpenChange={setOpen}
         title="未生效的修改"
       >
+        <p>{text}</p>
         <RejectedChanges />
       </ResponsiveOverlay>
     </>
   )
 }
 export function AppShell() {
+  const user = useSession((s) => s.currentUser)
   return (
     <>
       <Link className="row desktop-brand" to="/">
@@ -73,7 +81,7 @@ export function AppShell() {
       </Link>
       <div className="app-content">
         <header
-          className="page row"
+          className="page row app-header"
           style={{ justifyContent: 'space-between' }}
         >
           <Link className="row mobile-brand" to="/">
@@ -81,7 +89,9 @@ export function AppShell() {
             Waypoint
           </Link>
           <SyncStatus />
-          <Link to="/account">账户</Link>
+          <Link to="/account" aria-label="账户" className="account-avatar">
+            {user?.nickname?.slice(0, 1) || '我'}
+          </Link>
         </header>
         <Outlet />
       </div>

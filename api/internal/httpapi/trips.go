@@ -60,10 +60,13 @@ func (s *Server) CreateTrip(ctx context.Context, r CreateTripRequestObject) (Cre
 	if err = s.serverOp(ctx, q, id, "member", uuid.UUID(u.ID.Bytes), ClientOpKindCreate, memberFields(m, u)); err != nil {
 		return nil, err
 	}
+	if err = s.serverOp(ctx, q, id, "trip_rates", id, ClientOpKindCreate, map[string]any{}); err != nil {
+		return nil, err
+	}
 	if err = tx.Commit(ctx); err != nil {
 		return nil, err
 	}
-	t.LastSeq = 2
+	t.LastSeq = 3
 	s.hub.notify(id)
 	return CreateTrip200JSONResponse(publicTrip(t, "owner")), nil
 }

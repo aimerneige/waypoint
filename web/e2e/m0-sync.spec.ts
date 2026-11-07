@@ -3,7 +3,7 @@ import { latestMailLink } from './mailpit'
 test.use({ actionTimeout: 10000 })
 
 async function synced(page: Page) {
-  await expect(page.getByRole('status', { name: '同步状态' })).toHaveText(
+  await expect(page.getByRole('status', { name: /^同步状态/ })).toHaveText(
     '已同步',
   )
 }
@@ -70,6 +70,8 @@ test('M0 双用户离线、冲突、拒绝、删除、移除与退出清理', as
 }, info) => {
   test.setTimeout(180000)
   const options = {
+    locale: 'zh-CN',
+    timezoneId: 'Asia/Shanghai',
     baseURL: info.project.use.baseURL,
     viewport: { width: 375, height: 812 },
     isMobile: true,
@@ -131,11 +133,11 @@ test('M0 双用户离线、冲突、拒绝、删除、移除与退出清理', as
       await add(a, 'X')
       await add(b, 'Y')
       await remove(b, 'Z')
-      await expect(a.getByRole('status', { name: '同步状态' })).toHaveText(
-        '离线（2 条待同步）',
+      await expect(a.getByRole('status', { name: /^同步状态/ })).toHaveText(
+        '离线·2',
       )
-      await expect(b.getByRole('status', { name: '同步状态' })).toHaveText(
-        '离线（3 条待同步）',
+      await expect(b.getByRole('status', { name: /^同步状态/ })).toHaveText(
+        '离线·3',
       )
       await ac.setOffline(false)
       await bc.setOffline(false)
@@ -144,10 +146,16 @@ test('M0 双用户离线、冲突、拒绝、删除、移除与退出清理', as
       await expect(a.getByTestId('itinerary-item')).toHaveCount(3)
       await expect(b.getByTestId('itinerary-item')).toHaveCount(3)
       await expect(
-        a.getByTestId('itinerary-item').filter({ hasText: 'A 的标题' }),
+        a
+          .getByTestId('itinerary-item')
+          .filter({ hasText: 'A 的标题' })
+          .locator('xpath=ancestor::article'),
       ).toContainText('B 的地点')
       await expect(
-        b.getByTestId('itinerary-item').filter({ hasText: 'A 的标题' }),
+        b
+          .getByTestId('itinerary-item')
+          .filter({ hasText: 'A 的标题' })
+          .locator('xpath=ancestor::article'),
       ).toContainText('B 的地点')
       expect(await a.getByTestId('itinerary-item').allTextContents()).toEqual(
         await b.getByTestId('itinerary-item').allTextContents(),
@@ -214,8 +222,8 @@ test('M0 双用户离线、冲突、拒绝、删除、移除与退出清理', as
         await route.continue({ postData: JSON.stringify(body) })
       })
       await bc.setOffline(false)
-      await expect(b.getByRole('status', { name: '同步状态' })).toHaveText(
-        '有修改未生效',
+      await expect(b.getByRole('status', { name: /^同步状态/ })).toHaveText(
+        '未生效·1',
       )
       await expect(
         b.getByTestId('itinerary-item').filter({ hasText: 'A 冲突值' }),
@@ -223,7 +231,7 @@ test('M0 双用户离线、冲突、拒绝、删除、移除与退出清理', as
       await expect(
         b.getByTestId('itinerary-item').filter({ hasText: '被拒内容' }),
       ).toHaveCount(0)
-      await b.getByRole('status', { name: '同步状态' }).click()
+      await b.getByRole('status', { name: /^同步状态/ }).click()
       await expect(b.getByRole('dialog')).toContainText('修改内容不合法')
       await shots(b, 'rejected')
       await b.unroute('**/api/trips/*/ops')

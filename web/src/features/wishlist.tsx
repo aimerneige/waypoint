@@ -23,6 +23,9 @@ import { ResponsiveOverlay } from '@/ui/responsive-overlay'
 import { Button } from '@/ui/components/button'
 import { toast } from '@/ui/components/sonner'
 import { HistoryList } from './itinerary'
+import { ExternalLink, GripVertical } from 'lucide-react'
+import { ActionMenu } from '@/ui/action-menu'
+import { ListCard } from '@/ui/list-card'
 
 export async function scheduleWish(
   db: Database,
@@ -120,7 +123,7 @@ function WishCard({
   const f = wish.view!.fields
   return (
     <article
-      className="wish-card stack"
+      className="wish-card"
       ref={setNodeRef}
       style={{
         transform: transform
@@ -128,76 +131,86 @@ function WishCard({
           : undefined,
       }}
     >
-      <div className="row">
-        <strong>{String(f.title)}</strong>
+      <ListCard
+        status={
+          scheduled.length ? (
+            <Link
+              to={`/trips/${trip.id}?item=${scheduled[0].entityId}#item-${scheduled[0].entityId}`}
+            >
+              已安排（
+              {days.includes(String(scheduled[0].fields.date))
+                ? `第 ${days.indexOf(String(scheduled[0].fields.date)) + 1} 天`
+                : String(scheduled[0].fields.date)}
+              ）
+            </Link>
+          ) : (
+            '未安排'
+          )
+        }
+        title={
+          <span className="row">
+            <strong>{String(f.title)}</strong>
+            {!!f.url && (
+              <a
+                aria-label="查看链接"
+                href={String(f.url)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink size={16} />
+              </a>
+            )}
+          </span>
+        }
+        secondary={f.place ? String(f.place) : undefined}
+        description={f.note ? String(f.note) : undefined}
+        menu={
+          <ActionMenu
+            label={`心愿操作 ${f.title}`}
+            actions={[
+              { label: '编辑心愿', onSelect: onEdit },
+              {
+                label: '删除心愿',
+                danger: true,
+                onSelect: async () => {
+                  await writeEntity(
+                    db,
+                    trip.id,
+                    'wish_item',
+                    wish.entityId,
+                    'delete',
+                  )
+                  toast.undoable('心愿已删除', () => {
+                    void writeEntity(
+                      db,
+                      trip.id,
+                      'wish_item',
+                      wish.entityId,
+                      'restore',
+                    ).catch((e) => toast.error(String(e)))
+                  })
+                },
+              },
+            ]}
+          />
+        }
+      >
         {draggable && (
           <Button
-            variant="outline"
+            variant="ghost"
             aria-label={`拖动心愿 ${f.title}`}
             {...attributes}
             {...listeners}
             className="drag-handle"
           >
-            ⠿
+            <GripVertical size={18} />
           </Button>
         )}
-      </div>
-      {!!f.place && <p>{String(f.place)}</p>}
-      {!!f.note && <p className="whitespace-pre-wrap">{String(f.note)}</p>}
-      {!!f.url && (
-        <a href={String(f.url)} target="_blank" rel="noopener noreferrer">
-          查看链接
-        </a>
-      )}
-      {scheduled.length ? (
-        <>
-          <Link
-            to={`/trips/${trip.id}?item=${scheduled[0].entityId}#item-${scheduled[0].entityId}`}
-          >
-            已安排（
-            {days.includes(String(scheduled[0].fields.date))
-              ? `第 ${days.indexOf(String(scheduled[0].fields.date)) + 1} 天`
-              : String(scheduled[0].fields.date)}
-            ）
-          </Link>
-          {scheduled.length > 1 && <p>已安排 {scheduled.length} 次</p>}
-        </>
-      ) : (
-        <p className="text-muted-foreground">未安排</p>
-      )}
-      <div className="row">
-        <Button onClick={onSchedule}>安排到…</Button>
-        <Button variant="outline" onClick={onEdit}>
-          编辑心愿
-        </Button>
-        <Button
-          variant="outline"
-          onClick={async () => {
-            try {
-              await writeEntity(
-                db,
-                trip.id,
-                'wish_item',
-                wish.entityId,
-                'delete',
-              )
-              toast.undoable('心愿已删除', () => {
-                void writeEntity(
-                  db,
-                  trip.id,
-                  'wish_item',
-                  wish.entityId,
-                  'restore',
-                ).catch((e) => toast.error(String(e)))
-              })
-            } catch (e) {
-              toast.error(String(e))
-            }
-          }}
-        >
-          删除心愿
-        </Button>
-      </div>
+        {scheduled.length > 1 && <p>已安排 {scheduled.length} 次</p>}
+        <div className="row">
+          <Button onClick={onSchedule}>安排到…</Button>
+        </div>
+      </ListCard>
     </article>
   )
 }

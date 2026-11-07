@@ -11,7 +11,7 @@
   - [x] M0.4 前端 UI 基础 + 账号页面 + Playwright（主色在此定稿 → D13）
   - [x] M0.5 前端本地库 + 同步层 + 行程/成员/邀请页面
   - [x] M0.6 ItineraryItem 列表 + 冲突/拒绝/修改记录界面 + 退出清理 + M0 端到端验收
-- **M0 已完成（2026-11-07）**，**M1 已完成**。后续里程碑任务书：`docs/tasks/m1-wishlist-itinerary.md`、`docs/tasks/m2-ledger-settlement.md`（M3–M5 待写）。
+- **M0 已完成（2026-11-07）**，**M1、M2 已完成**。界面打磨待办见 docs/polish-backlog.md（M5 处理）。后续里程碑任务书：`docs/tasks/m1-wishlist-itinerary.md`、`docs/tasks/m2-ledger-settlement.md`（M3–M5 待写）。
 - 验收流程：读 codex 报告 → 自己在 worker 上重跑 lint/test/`make test-integration`/compose 冒烟 → 审关键代码 → 提交。
 
 ## 环境注意

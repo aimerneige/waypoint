@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
-import { Bell } from 'lucide-react'
+import { Bell, GripVertical } from 'lucide-react'
+import { ActionMenu } from '@/ui/action-menu'
+import { ListCard } from '@/ui/list-card'
+import { LedgerRetry } from './ledger'
 import {
   DndContext,
   MouseSensor,
@@ -53,6 +56,7 @@ import { Card } from '@/ui/components/card'
 import { toast } from '@/ui/components/sonner'
 import { Fab } from '@/ui/shell'
 import type { Op } from '@/domain/ops'
+import { formatMoney } from '@/domain/money'
 
 const labels: Record<string, string> = {
   title: '标题',
@@ -80,6 +84,30 @@ const labels: Record<string, string> = {
   sortOrder: '排序',
   note: '备注',
   url: '链接',
+  ownerUserId: '钱包主人',
+  currency: '币种',
+  cnyPaid: '支付人民币',
+  foreignReceived: '收到外币',
+  time: '时间',
+  category: '分类',
+  amount: '原币金额',
+  method: '支付方式',
+  cardNote: '卡片备注',
+  payerUserId: '付款人',
+  rateSource: '汇率来源',
+  rate: '汇率',
+  amountCny: '人民币金额',
+  split: '分摊',
+  fromUserId: '转出成员',
+  toUserId: '收款成员',
+}
+const entityLabels: Record<string, string> = {
+  expense: '账目',
+  exchange: '换汇',
+  settlement_transfer: '结算转账',
+  trip_rates: '默认汇率',
+  wish_item: '心愿',
+  itinerary_item: '行程条目',
 }
 const value = (v: unknown) => (v == null ? '空' : String(v))
 function useTripData() {
@@ -341,7 +369,13 @@ export function Itinerary() {
     kind: Op['kind']
   } | null>(null)
   const [params] = useSearchParams()
-  const [noticesOpen, setNoticesOpen] = useState(() => params.has('notices'))
+  const [noticesOpen, setNoticesOpen] = useState(false)
+  useEffect(() => {
+    if (!params.has('notices')) return
+    // 等路由清理旧弹层记录后再打开，避免新面板被同一次导航关闭。
+    const timer = window.setTimeout(() => setNoticesOpen(true), 0)
+    return () => window.clearTimeout(timer)
+  }, [params])
   const notices = useLiveQuery(
     () => db.notices.where('tripId').equals(tripId).toArray(),
     [db, tripId],
@@ -695,6 +729,7 @@ function ItineraryCard({
   onReturn: () => Promise<void>
 }) {
   const f = row.view!.fields
+  const { db, tripId } = useTripData()
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: row.entityId, disabled: !desktop })
   return (
@@ -704,65 +739,82 @@ function ItineraryCard({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className="itinerary-card"
     >
-      <button
-        className="item-main"
-        data-testid="itinerary-item"
-        onClick={onEdit}
-      >
-        <span className="item-time">{timeLabel(f, trip.timezone)}</span>
-        <span className="stack">
-          <strong>{String(f.title)}</strong>
-          {!!f.place && (
-            <span className="text-muted-foreground">{String(f.place)}</span>
-          )}
-          {!!f.wishItemId && <span className="wish-marker">来自心愿</span>}
-        </span>
-      </button>
-      {!!f.bookingInfo && (
-        <p className="booking-summary">
-          <BookingText text={String(f.bookingInfo).split('\n')[0]} />
-        </p>
-      )}
-      <details className="item-menu">
-        <summary aria-label={`条目操作 ${f.title}`}>更多操作</summary>
-        <div className="row">
-          {!f.startTime && (
-            <>
-              <Button
-                variant="outline"
-                disabled={!canUp}
-                onClick={() => onReorder(-1)}
-              >
-                上移
-              </Button>
-              <Button
-                variant="outline"
-                disabled={!canDown}
-                onClick={() => onReorder(1)}
-              >
-                下移
-              </Button>
-            </>
-          )}
-          <Button variant="outline" onClick={onMove}>
-            移到其它天
-          </Button>
-          {!!f.wishItemId && (
-            <Button variant="outline" onClick={() => void onReturn()}>
-              移回心愿池
-            </Button>
-          )}
-        </div>
-      </details>
+      <ListCard
+        title={
+          <button
+            className="item-main"
+            data-testid="itinerary-item"
+            onClick={onEdit}
+          >
+            <strong>{String(f.title)}</strong>
+            <span className="item-time">{timeLabel(f, trip.timezone)}</span>
+          </button>
+        }
+        secondary={[f.place, f.wishItemId ? '来自心愿' : null]
+          .filter(Boolean)
+          .join(' · ')}
+        description={
+          f.bookingInfo ? (
+            <BookingText text={String(f.bookingInfo).split('\n')[0]} />
+          ) : undefined
+        }
+        menu={
+          <ActionMenu
+            label={`条目操作 ${f.title}`}
+            actions={[
+              ...(!f.startTime
+                ? [
+                    {
+                      label: '上移',
+                      disabled: !canUp,
+                      onSelect: () => onReorder(-1),
+                    },
+                    {
+                      label: '下移',
+                      disabled: !canDown,
+                      onSelect: () => onReorder(1),
+                    },
+                  ]
+                : []),
+              { label: '移到其它天', onSelect: onMove },
+              ...(f.wishItemId
+                ? [{ label: '移回心愿池', onSelect: onReturn }]
+                : []),
+              {
+                label: '删除条目',
+                danger: true,
+                onSelect: async () => {
+                  await writeEntity(
+                    db,
+                    tripId,
+                    'itinerary_item',
+                    row.entityId,
+                    'delete',
+                  )
+                  toast.undoable('条目已删除', () => {
+                    void writeEntity(
+                      db,
+                      tripId,
+                      'itinerary_item',
+                      row.entityId,
+                      'restore',
+                    ).catch((e) => toast.error(String(e)))
+                  })
+                },
+              },
+            ]}
+          />
+        }
+      />
       {desktop && (
         <Button
-          variant="outline"
+          variant="ghost"
           className="drag-handle"
           aria-label={`拖动条目 ${f.title}`}
           {...attributes}
           {...listeners}
         >
-          ⠿
+          <GripVertical size={18} />
         </Button>
       )}
     </article>
@@ -858,7 +910,7 @@ export function RejectedChanges() {
       {rows.map((row) => (
         <Card key={row.opId}>
           <p>
-            {row.entity === 'wish_item' ? '心愿' : '行程条目'}「
+            {entityLabels[row.entity] ?? row.entity}「
             {String(
               entities.find(
                 (entity) =>
@@ -919,6 +971,24 @@ export function RejectedChanges() {
                 setRetry(null)
               }}
             />
+          ) : [
+              'expense',
+              'exchange',
+              'trip_rates',
+              'settlement_transfer',
+            ].includes(retry.entity) &&
+            (retry.kind === 'update' || retry.kind === 'create') ? (
+            <LedgerRetry
+              key={retry.opId}
+              db={db}
+              trip={trip}
+              retry={retry}
+              entity={entity}
+              onSaved={async () => {
+                await db.rejected.delete(retry.opId)
+                setRetry(null)
+              }}
+            />
           ) : retry.kind === 'update' || retry.kind === 'create' ? (
             <ItemEditor
               key={retry.opId}
@@ -972,12 +1042,45 @@ export function HistoryList({
   const rows = useLiveQuery(
     async () =>
       (await db.ops.where('tripId').equals(tripId).toArray())
-        .filter((op) => !entityId || op.entityId === entityId)
+        .filter(
+          (op) =>
+            !entityId || (op.entityId === entityId && op.entity === entity),
+        )
         .sort((a, b) => b.serverSeq - a.serverSeq),
-    [db, tripId, entityId],
+    [db, tripId, entityId, entity],
     [],
   )
   const members = useEntities(db, tripId, 'member')
+  const states = useLiveQuery(
+    () => db.entities.where('tripId').equals(tripId).toArray(),
+    [db, tripId],
+    [],
+  )
+  const historyValue = (
+    op: import('@/domain/ops').ServerOp,
+    field: string,
+    v: unknown,
+  ) => {
+    if (v == null) return '空'
+    if (
+      ['amount', 'cnyPaid', 'foreignReceived', 'amountCny'].includes(field) &&
+      typeof v === 'number'
+    ) {
+      const currency =
+        field === 'amount' || field === 'foreignReceived'
+          ? String(
+              op.fields.currency ??
+                states.find(
+                  (s) => s.entity === op.entity && s.entityId === op.entityId,
+                )?.view?.fields.currency ??
+                'CNY',
+            )
+          : 'CNY'
+      return formatMoney(BigInt(v), currency)
+    }
+    if (field === 'split' && typeof v === 'object') return JSON.stringify(v)
+    return value(v)
+  }
   const name = (id: string) =>
     String(members.find((m) => m.entityId === id)?.view?.fields.nickname ?? id)
   return (
@@ -999,13 +1102,13 @@ export function HistoryList({
                 ? `${name(op.actorUserId)} 把行程名改为 ${value(op.fields.name)}`
                 : op.entity === 'trip'
                   ? `${name(op.actorUserId)} 修改了行程设置`
-                  : `${op.entity === 'wish_item' ? '心愿' : '行程条目'} · ${{ create: '新增', update: '修改', delete: '删除', restore: '恢复' }[op.kind]}`}
+                  : `${entityLabels[op.entity] ?? op.entity} · ${{ create: '新增', update: '修改', delete: '删除', restore: '恢复' }[op.kind]}`}
           </p>
           {Object.entries(op.changes).map(([field, change]) => (
             <p key={field}>
               {field === 'sortOrder'
                 ? '调整了顺序'
-                : `${field === 'endDate' && op.entity === 'itinerary_item' ? '到达日期' : (labels[field] ?? field)}：${value(change.old)} → ${value(change.new)}`}
+                : `${field === 'endDate' && op.entity === 'itinerary_item' ? '到达日期' : (labels[field] ?? field)}：${historyValue(op, field, change.old)} → ${historyValue(op, field, change.new)}`}
             </p>
           ))}
         </Card>

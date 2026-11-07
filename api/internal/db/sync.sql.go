@@ -11,6 +11,36 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const allTripMembers = `-- name: AllTripMembers :many
+SELECT trip_id, user_id, role, joined_at, left_at FROM trip_members WHERE trip_id=$1
+`
+
+func (q *Queries) AllTripMembers(ctx context.Context, tripID pgtype.UUID) ([]TripMember, error) {
+	rows, err := q.db.Query(ctx, allTripMembers, tripID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TripMember
+	for rows.Next() {
+		var i TripMember
+		if err := rows.Scan(
+			&i.TripID,
+			&i.UserID,
+			&i.Role,
+			&i.JoinedAt,
+			&i.LeftAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createInvite = `-- name: CreateInvite :one
 INSERT INTO invites(id,trip_id,token,created_by,expires_at) VALUES($1,$2,$3,$4,$5) RETURNING id, trip_id, token, created_by, expires_at, revoked_at, created_at
 `

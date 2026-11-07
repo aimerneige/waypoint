@@ -115,15 +115,15 @@ op {
 |---|---|
 | User | id, email, nickname, avatar |
 | Trip | id, name, startDate, endDate, timezone（目的地默认时区）, baseCurrency=CNY, ownerId |
-| DefaultRate | tripId, currency, rate |
+| trip_rates | entityId=tripId；币种代码为字段，正十进制字符串或 null；服务器创建，客户端仅 update |
 | Member | tripId, userId, role, joinedAt, leftAt |
 | Invite | tripId, token, expiresAt, revokedAt |
 | WishItem | title, note, url, place, createdBy；已安排状态由未删除的 ItineraryItem.wishItemId 推导，不保存 scheduledItemId |
 | ItineraryItem | date, startTime?, endTime?, timezone?, endDate?, endTimezone?, title, place, bookingInfo, voucherIds[], wishItemId?, sortOrder |
-| Wallet | ownerMemberId, currency |
-| Exchange | walletId, cnyPaid, foreignReceived, date |
+| Wallet（推导，无实体） | (ownerUserId, currency)，由换汇与现金支出推导余额与加权平均成本 |
+| Exchange | ownerUserId, currency, cnyPaid, foreignReceived, date, time?, note?；只有创建者本人可修改/删除/恢复 |
 | Expense | 见 4.3 |
-| SettlementTransfer | fromMember, toMember, amountCny, date, note |
+| SettlementTransfer | fromUserId, toUserId, amountCny, date, note?；创建后可删除/恢复，不可 update |
 | PackingTemplate | name, items[]（系统预设 + 用户保存） |
 | PackingItem | name, scope: personal/shared, ownerMemberId（personal）, assigneeMemberId（shared）, checkedBy |
 | Voucher | type（机票/酒店/门票/签证/保险/其他）, title, fileRef, mime, size, visibility: trip/private, uploadedBy, linkedItineraryIds |
@@ -155,9 +155,11 @@ op {
 - 支付方式：`card`（刷卡）/ `cash`（现金，关联钱包）/ `cny`（直接人民币支付，如支付宝）
 - 卡片备注（仅 card，可选）：如"招行 Visa"，方便按卡对账
 - 汇率 `rate`（1 单位原币 = rate CNY）与来源 `rateSource`：`default`（行程默认汇率）/ `wallet`（钱包成本）/ `manual`（手动填写）/ `actual`（由实际扣款反推）
-- 折合人民币 `amountCny`
+- `manual` 仅保存 `rate`；`actual` 仅保存 `amountCny`（人民币分），汇率由实际金额反推；`default` / `wallet` 的汇率与人民币金额实时推导，不落库；CNY 汇率固定为 1
 - 付款人：card / cny 时手选；cash 时 = 钱包主人
 - 分摊：参与成员列表，v1 均分；数据结构预留按份数 / 指定金额
+- 实际字段：`payerUserId`、`split: {mode: 'equal', members: userId[]}`（非空、去重、允许已退出成员）、`note?`。金额为正整数，最大 1e12 最小单位；标题 1–200 字，备注最多 500 字。
+- 任何当前成员可共享编辑账目；现金账目的金额、币种、方式、付款人只有原付款人可改。服务端每次按合并后的完整状态校验，阻止通过更改付款人绕过现金权限。
 
 **规则：**
 - 任何时候都可以手动修改汇率或直接填写折合人民币金额，填写后来源变为 `manual` / `actual`，不再跟随默认汇率变化。
@@ -178,7 +180,7 @@ op {
 
 ### 4.4 AA 结算
 - 每人净额 = 其付款的 amountCny 总和 − 其分摊总和 ± 已标记的转账。
-- 求最少转账：成员数 ≤ 20 时用精确算法（按子集求最多的"净额和为零"互不相交分组，转账数 = 非零人数 − 分组数），保证最优；超出时退化为贪心并注明。
+- 求最少转账：非零净额人数 ≤ 20 时用 O(n·2^n) 子集位掩码 DP（按子集求最多的"净额和为零"互不相交分组，转账数 = 非零人数 − 分组数），保证最优；超出时退化为贪心并注明。
 - 结算页显示：转账列表（谁 → 谁、多少元）、每人明细（可展开看由哪些账构成）。
 - 警示：存在"估算"状态的刷卡账目时显示"N 笔刷卡未核实实际扣款，结果为估算"；离线时显示"可能缺少他人未同步的账目"。
 - "标记已转账"生成 SettlementTransfer 记录，计入净额；可撤销（软删除）。

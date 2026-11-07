@@ -171,6 +171,10 @@ func validateOp(op ClientOp) error {
 	}
 	for f, v := range op.Fields {
 		d, ok := def.Fields[f]
+		if op.Entity == "trip_rates" {
+			d = FieldDef{Nullable: true, Validate: validRate}
+			ok = foreignCurrency(f)
+		}
 		if !ok {
 			return fail(400, "invalid_op", "未知字段 "+f)
 		}
@@ -189,7 +193,11 @@ func validateOp(op ClientOp) error {
 		}
 	}
 	for f, seq := range op.BaseSeq {
-		if _, ok := def.Fields[f]; !ok || seq < 0 {
+		_, ok := def.Fields[f]
+		if op.Entity == "trip_rates" {
+			ok = foreignCurrency(f)
+		}
+		if !ok || seq < 0 {
 			return fail(400, "invalid_op", "baseSeq 字段非法 "+f)
 		}
 	}
@@ -373,6 +381,11 @@ func (s *Server) applyOp(ctx context.Context, q *db.Queries, op ClientOp, origin
 		}
 		if end, ok := merged["endDate"].(string); ok && end < merged["date"].(string) {
 			return OpResult{}, fail(400, "invalid_op", "endDate 不能早于 date")
+		}
+	}
+	if origin == "client" {
+		if err := s.validateLedgerState(ctx, q, op, e, fields); err != nil {
+			return OpResult{}, err
 		}
 	}
 	seq, err := q.NextSeq(ctx, uid(op.TripId))

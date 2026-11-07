@@ -1,5 +1,8 @@
 -- name: LockTrip :one
 SELECT * FROM trips WHERE id=$1 FOR UPDATE;
+
+-- name: AllTripMembers :many
+SELECT * FROM trip_members WHERE trip_id=$1;
 -- name: GetTrip :one
 SELECT * FROM trips WHERE id=$1;
 -- name: CreateTrip :one

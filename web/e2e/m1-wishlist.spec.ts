@@ -3,7 +3,7 @@ import { latestMailLink } from './mailpit'
 test.use({ actionTimeout: 10000 })
 
 async function synced(page: Page) {
-  await expect(page.getByRole('status', { name: '同步状态' })).toHaveText(
+  await expect(page.getByRole('status', { name: /^同步状态/ })).toHaveText(
     '已同步',
   )
 }
@@ -18,6 +18,9 @@ function item(page: Page, title: string) {
     .filter({ has: page.getByText(title, { exact: true }) })
 }
 async function screenshot(page: Page, name: string) {
+  await expect(
+    page.locator('[data-sonner-toast][data-visible="true"]'),
+  ).toHaveCount(0)
   const dialog = page.getByRole('dialog').last()
   if (await dialog.count()) {
     await dialog.evaluate(async (element) => {
@@ -39,6 +42,7 @@ async function screenshot(page: Page, name: string) {
       theme,
     )
     await page.screenshot({
+      animations: 'disabled',
       path: `e2e/screenshots/m1-${name}-${theme}.png`,
       fullPage: true,
     })
@@ -51,6 +55,8 @@ test('M1 心愿安排、撤销、历史、离线、排序、并发与桌面拖�
 }, info) => {
   test.setTimeout(240000)
   const options = {
+    locale: 'zh-CN',
+    timezoneId: 'Asia/Shanghai',
     baseURL: info.project.use.baseURL,
     viewport: info.project.use.viewport,
     isMobile: info.project.use.isMobile,
@@ -124,11 +130,8 @@ test('M1 心愿安排、撤销、历史、离线、排序、并发与桌面拖�
     await test.step('移回心愿池并查看创建删除历史', async () => {
       await schedule(a, '美术馆', 2)
       await a.getByRole('link', { name: '返回行程' }).click()
-      await item(a, '美术馆').locator('..').locator('summary').click()
-      await item(a, '美术馆')
-        .locator('..')
-        .getByRole('button', { name: '移回心愿池' })
-        .click()
+      await a.getByRole('button', { name: '条目操作 美术馆' }).click()
+      await a.getByText('移回心愿池', { exact: true }).click()
       await expect(item(a, '美术馆')).toHaveCount(0)
       await a.getByRole('link', { name: /心愿池（/ }).click()
       await expect(card(a, '美术馆')).toContainText('未安排')
@@ -164,7 +167,7 @@ test('M1 心愿安排、撤销、历史、离线、排序、并发与桌面拖�
       await expect(item(b, '美术馆')).toContainText('23:00 → 次日 08:30')
       await expect(
         item(b, '美术馆')
-          .locator('..')
+          .locator('xpath=ancestor::article')
           .getByRole('link', { name: 'https://example.com' }),
       ).toHaveAttribute('href', 'https://example.com')
     })
@@ -177,11 +180,8 @@ test('M1 心愿安排、撤销、历史、离线、排序、并发与桌面拖�
     await synced(a)
     await synced(b)
     await test.step('手机上移下移同步', async () => {
-      await item(a, '咖啡馆').locator('..').locator('summary').click()
-      await item(a, '咖啡馆')
-        .locator('..')
-        .getByRole('button', { name: '上移', exact: true })
-        .click()
+      await a.getByRole('button', { name: '条目操作 咖啡馆' }).click()
+      await a.getByText('上移', { exact: true }).click()
       await synced(a)
       await synced(b)
       await expect(
@@ -190,10 +190,8 @@ test('M1 心愿安排、撤销、历史、离线、排序、并发与桌面拖�
           .getByTestId('itinerary-item')
           .first(),
       ).toContainText('咖啡馆')
-      await item(a, '咖啡馆')
-        .locator('..')
-        .getByRole('button', { name: '下移', exact: true })
-        .click()
+      await a.getByRole('button', { name: '条目操作 咖啡馆' }).click()
+      await a.getByText('下移', { exact: true }).click()
       await synced(a)
       await expect(
         b
@@ -237,8 +235,9 @@ test('M1 心愿安排、撤销、历史、离线、排序、并发与桌面拖�
         await addWish('拖拽心愿')
         const handle = a.getByRole('button', { name: '拖动心愿 拖拽心愿' })
         const target = a.locator('[data-day="2026-11-10"]')
-        await target.getByRole('heading').scrollIntoViewIfNeeded()
-        await handle.scrollIntoViewIfNeeded()
+        await a.evaluate(() => window.scrollTo(0, 0))
+        await expect(target.getByRole('heading')).toBeInViewport()
+        await expect(handle).toBeInViewport()
         const from = await handle.boundingBox(),
           to = await target.getByRole('heading').boundingBox()
         expect(from).toBeTruthy()

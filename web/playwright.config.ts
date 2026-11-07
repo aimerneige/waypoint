@@ -5,6 +5,17 @@ export default defineConfig({
   expect: { timeout: 10000 },
   workers: 1,
   use: {
+    locale: 'zh-CN',
+    timezoneId: 'Asia/Shanghai',
+    launchOptions: {
+      args: ['--lang=zh-CN'],
+      env: {
+        ...process.env,
+        LANG: 'zh_CN.UTF-8',
+        LC_ALL: 'zh_CN.UTF-8',
+        LANGUAGE: 'zh_CN:zh',
+      },
+    },
     baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:8088',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',

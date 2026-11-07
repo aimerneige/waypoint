@@ -20,6 +20,7 @@ import { Members, TripSettings } from './features/trip-management'
 import { startSync } from './sync-runtime'
 import { Itinerary, TripHistory } from './features/itinerary'
 import { Wishlist } from './features/wishlist'
+import { Ledger } from './features/ledger'
 function Root() {
   const status = useSession((s) => s.status)
   const upgrade = useSyncStatus((s) => s.upgrade)
@@ -146,7 +147,7 @@ export const router = createBrowserRouter([
                   { index: true, element: <Itinerary /> },
                   { path: 'wishes', element: <Wishlist /> },
                   { path: 'history', element: <TripHistory /> },
-                  { path: 'ledger', element: <TripPlaceholder title="账本" /> },
+                  { path: 'ledger', element: <Ledger /> },
                   {
                     path: 'packing',
                     element: <TripPlaceholder title="清单" />,
