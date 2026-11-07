@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { api, ApiError, sessionEvents } from '@/api/client'
 import type { components } from '@/api/schema'
 import { auth } from './auth'
+import { deleteDatabase } from '@/data/db'
 type User = components['schemas']['User']
 const userSchema = z.object({
   id: z.string(),
@@ -73,6 +74,9 @@ export async function logoutSession(
   await clearSession()
 }
 export async function clearSession() {
+  const user = useSession.getState().currentUser
+  useSession.setState({ status: 'anonymous' })
+  if (user) await deleteDatabase(user.id)
   await auth.onLogout()
   localStorage.removeItem('wp:lastUser')
   useSession.setState({ currentUser: null, status: 'anonymous' })

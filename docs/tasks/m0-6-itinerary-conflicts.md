@@ -2,6 +2,12 @@
 
 前置：M0.1–M0.5 已完成。先阅读 `docs/sync-protocol.md`、`spec.md` 第 2.3、2.5、2.6、2.7、6.1 节、`docs/decisions.md` D12，以及现有 `web/src/{domain,data,sync,ui,features}`。
 
+## 0. 前置修正（M0.5 验收遗留）
+- **本地写入只同步对应行程**：`localWrites` 事件携带 tripId，防抖后只调用 `engine.sync(tripId)`，不要每次写入都 `discover()`（会请求行程列表并同步全部行程）。`discover()` 只用于启动、online、重新可见、60 秒兜底。
+- **SSE 断网恢复**：`subscribeTrip` 目前只在挂载时在线才建立 EventSource；离线打开行程后恢复网络不会再连。改为监听 online/offline 与 visibilitychange：离线或隐藏时关闭，恢复时重建；重建后立即触发一次 `sync(tripId)`。EventSource 进入 CLOSED（如 403）时不要无限重建，交给 sync 的错误处理。
+- **提示只给相关的人**：M0.5 对所有含 conflicts / entityDeleted 的 op 都生成 notice 并对所有人弹提示条。按本任务第 2 节改为只对相关用户生成（actor 或 overwrittenActor 是当前用户），且 notice 内容结构化（类型、字段、旧值、新值、对方 userId），由界面渲染文案。entityDeleted 的提示应来自**推送结果**（本人的 op），不是拉取到的他人 op。
+- **离线状态**：确认 SyncStatus 在 `navigator.onLine=false` 时显示"离线（N 条待同步）"，e2e 中断言。
+
 ## 1. 行程 tab：ItineraryItem 最小实现（D12）
 - 字段：title（必填，≤200）、date（必填，限制在行程日期范围内，手机原生 date input）、place（可空，≤200）。
 - 按行程日期生成"第 N 天 · M月D日 周X"分组，每组列出当天条目（本任务按创建顺序即可，排序规则 M1 再做）；行程日期范围外的条目放"未在行程日期内"分组。

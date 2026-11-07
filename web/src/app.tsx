@@ -8,7 +8,7 @@ import {
 } from 'react-router'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { bootstrapSession, useSession } from './platform/session'
-import { AppShell, TripLayout } from './ui/shell'
+import { AppShell, TripLayout, useSyncStatus } from './ui/shell'
 import { overlayHistory } from './ui/overlay-history'
 import { Toaster } from './ui/components/sonner'
 import { Button } from './ui/components/button'
@@ -16,8 +16,11 @@ import { applyTheme } from './ui/theme/tokens'
 import { AuthPage, VerifyEmail } from './features/auth'
 import { Account } from './features/account'
 import { MyTrips, TripPlaceholder, JoinTrip } from './features/trips'
+import { Members, TripSettings } from './features/trip-management'
+import { startSync } from './sync-runtime'
 function Root() {
   const status = useSession((s) => s.status)
+  const upgrade = useSyncStatus((s) => s.upgrade)
   const location = useLocation()
   const [showInstall, setShowInstall] = useState(
     () =>
@@ -33,6 +36,7 @@ function Root() {
     updateServiceWorker,
   } = useRegisterSW()
   useEffect(() => {
+    const stopSync = startSync()
     void bootstrapSession()
     const media = matchMedia('(prefers-color-scheme: dark)')
     const change = () => {
@@ -40,7 +44,10 @@ function Root() {
         applyTheme('system')
     }
     media.addEventListener('change', change)
-    return () => media.removeEventListener('change', change)
+    return () => {
+      stopSync()
+      media.removeEventListener('change', change)
+    }
   }, [])
   useEffect(() => {
     overlayHistory?.clearForRoute()
@@ -69,10 +76,15 @@ function Root() {
           </Button>
         </div>
       )}
-      {needRefresh && (
+      {(needRefresh || upgrade) && (
         <div className="banner">
-          <Button onClick={() => void updateServiceWorker(true)}>
-            有更新，点击刷新
+          <Button
+            onClick={() => {
+              if (needRefresh) void updateServiceWorker(true)
+              else window.location.reload()
+            }}
+          >
+            {upgrade ? '需要更新应用，点击刷新' : '有更新，点击刷新'}
           </Button>
         </div>
       )}
@@ -129,12 +141,12 @@ export const router = createBrowserRouter([
                     element: <TripPlaceholder title="清单" />,
                   },
                   { path: 'more', element: <TripPlaceholder title="更多" /> },
+                  { path: 'members', element: <Members /> },
+                  { path: 'settings', element: <TripSettings /> },
                   ...(
                     [
                       ['documents', '凭证'],
                       ['polls', '投票'],
-                      ['members', '成员'],
-                      ['settings', '设置'],
                       ['history', '修改记录'],
                     ] as const
                   ).map(([path, title]) => ({

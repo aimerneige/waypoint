@@ -1,5 +1,9 @@
 import { create } from 'zustand'
-import { Link, NavLink, Outlet } from 'react-router'
+import { Link, NavLink, Outlet, useParams } from 'react-router'
+import { useEffect } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { database } from '@/data/db'
+import { subscribeTrip } from '@/sync-runtime'
 import {
   Map,
   Wallet,
@@ -15,19 +19,24 @@ import { useSession } from '@/platform/session'
 export const useSyncStatus = create<{
   state: 'synced' | 'syncing' | 'pending'
   pending: number
-}>(() => ({ state: 'synced', pending: 0 }))
+  rejected: number
+  upgrade: boolean
+}>(() => ({ state: 'synced', pending: 0, rejected: 0, upgrade: false }))
 export function SyncStatus() {
   const online = useOnline()
-  const { state, pending } = useSyncStatus()
+  const { state, pending, rejected, upgrade } = useSyncStatus()
   const expired = useSession((s) => s.status === 'expired')
-  const text =
-    expired || state === 'pending'
-      ? '有修改未生效'
-      : !online
-        ? `离线（${pending} 条待同步）`
-        : state === 'syncing'
-          ? '同步中'
-          : '已同步'
+  const text = upgrade
+    ? '需要更新应用'
+    : expired
+      ? '登录已失效'
+      : rejected > 0 || state === 'pending'
+        ? '有修改未生效'
+        : !online
+          ? `离线（${pending} 条待同步）`
+          : state === 'syncing' || pending > 0
+            ? '同步中'
+            : '已同步'
   return (
     <span role="status" className="row muted">
       <CloudCheck size={16} />
@@ -38,19 +47,37 @@ export function SyncStatus() {
 export function AppShell() {
   return (
     <>
-      <header className="page row" style={{ justifyContent: 'space-between' }}>
-        <Link className="row" to="/">
-          <Compass />
-          Waypoint
-        </Link>
-        <SyncStatus />
-        <Link to="/account">账户</Link>
-      </header>
-      <Outlet />
+      <Link className="row desktop-brand" to="/">
+        <Compass />
+        Waypoint
+      </Link>
+      <div className="app-content">
+        <header
+          className="page row"
+          style={{ justifyContent: 'space-between' }}
+        >
+          <Link className="row mobile-brand" to="/">
+            <Compass />
+            Waypoint
+          </Link>
+          <SyncStatus />
+          <Link to="/account">账户</Link>
+        </header>
+        <Outlet />
+      </div>
     </>
   )
 }
 export function TripLayout() {
+  const { tripId = '' } = useParams()
+  const user = useSession((s) => s.currentUser)!
+  const status = useSession((s) => s.status)
+  const online = useOnline()
+  const trip = useLiveQuery(
+    () => database(user.id).trips.get(tripId),
+    [user.id, tripId],
+  )
+  useEffect(() => subscribeTrip(tripId), [tripId, status, online])
   return (
     <>
       <nav aria-label="行程导航" className="trip-nav">
@@ -70,7 +97,18 @@ export function TripLayout() {
         })}
       </nav>
       <div className="trip-content">
-        <Outlet />
+        <div className="page row">
+          <Link to="/">我的行程</Link>
+          <strong>{trip?.name}</strong>
+          <SyncStatus />
+        </div>
+        {trip && trip.access !== 'ok' ? (
+          <main className="page">
+            该行程已无法访问 <Link to="/">返回我的行程</Link>
+          </main>
+        ) : (
+          <Outlet />
+        )}
       </div>
     </>
   )

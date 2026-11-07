@@ -1,14 +1,11 @@
 import { useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { database } from '@/data/db'
 import { useNavigate } from 'react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import {
-  useSession,
-  saveUser,
-  logoutSession,
-  clearSession,
-} from '@/platform/session'
+import { useSession, saveUser, logoutSession } from '@/platform/session'
 import { api } from '@/api/client'
 import { errorMessage, nickname, password } from './auth-utils'
 import { Form, FormField } from '@/ui/components/form'
@@ -31,6 +28,17 @@ export function Account({
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [confirmLogout, setConfirmLogout] = useState(false)
+  const pending = useLiveQuery(
+    () => database(user.id).outbox.count(),
+    [user.id],
+  )
+  async function logout() {
+    await perform(async () => {
+      await logoutSession(onBeforeLogout)
+      navigate('/login', { replace: true })
+    })
+  }
   const profile = useForm({
     resolver: zodResolver(z.object({ nickname })),
     defaultValues: { nickname: user.nickname },
@@ -130,17 +138,16 @@ export function Account({
         open={open}
         onOpenChange={setOpen}
         title="修改密码"
-        description="修改后所有设备都需要重新登录。"
+        description="修改后其他设备将退出登录。"
       >
         <Form {...passwords}>
           <form
             onSubmit={passwords.handleSubmit((values) =>
               perform(async () => {
                 await api.POST('/api/auth/change-password', { body: values })
-                await clearSession()
                 setOpen(false)
-                navigate('/login')
-                toast.success('密码已修改，请重新登录')
+                passwords.reset()
+                toast.success('密码已修改，其他设备已退出登录')
               }),
             )}
           >
@@ -164,17 +171,25 @@ export function Account({
       </ResponsiveOverlay>
       <Button
         variant="outline"
-        disabled={!online}
+        disabled={!online || pending === undefined}
         loading={busy}
-        onClick={() =>
-          void perform(async () => {
-            await logoutSession(onBeforeLogout)
-            navigate('/login', { replace: true })
-          })
-        }
+        onClick={() => {
+          if (pending) setConfirmLogout(true)
+          else void logout()
+        }}
       >
         退出登录
       </Button>
+      <ResponsiveOverlay
+        open={confirmLogout}
+        onOpenChange={setConfirmLogout}
+        title="退出登录"
+        description={`还有 ${pending} 条未同步修改，退出将清空本地数据。`}
+      >
+        <Button loading={busy} onClick={() => void logout()}>
+          确认退出登录
+        </Button>
+      </ResponsiveOverlay>
     </main>
   )
 }

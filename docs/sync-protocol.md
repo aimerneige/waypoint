@@ -68,7 +68,7 @@ update 按字段最后写入胜出：`fieldSeq[field] > baseSeq[field]` 且服�
 }
 ```
 
-accepted/duplicate 均可移出待发送队列，随后拉取服务器权威数据。确定性业务 rejected 应回滚本地效果，放入未生效列表；其拒绝结果持久化，重复提交同一个 opId 返回原拒绝。upgrade_required/server_outdated 取决于版本环境，不写入 rejected_ops，保留队列并在升级后使用原 opId 重新提交。升级链缺失等内部错误也不持久化，恢复后重试原操作。全局 opId 不可被其他行程/用户复用，否则拒绝 invalid_op，且不泄露原操作。
+accepted/duplicate 均可停止发送，客户端记录 acceptedSeq 并保留本地操作，直到拉取游标越过该序号再删除，避免乐观视图闪回。确定性业务 rejected 应回滚本地效果，放入未生效列表；其拒绝结果持久化，重复提交同一个 opId 返回原拒绝。upgrade_required/server_outdated 取决于版本环境，不写入 rejected_ops，保留队列并在升级后使用原 opId 重新提交。升级链缺失等内部错误也不持久化，恢复后重试原操作。全局 opId 不可被其他行程/用户复用，否则拒绝 invalid_op，且不泄露原操作。
 
 未登录 HTTP 401；非当前成员 HTTP 403；行程不存在 HTTP 404。整批所有结果均为版本拒绝时 HTTP 426，统一错误体给出首条版本拒绝原因；混合批次保持 HTTP 200 并逐条返回。无论哪种响应方式，版本拒绝都不持久化。请求体超限 HTTP 413：`{"error":{"code":"payload_too_large","message":"请求体过大"}}`。传输层错误不应直接当作整批业务拒绝。
 

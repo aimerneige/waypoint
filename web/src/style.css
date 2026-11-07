@@ -239,7 +239,23 @@ select {
   background: var(--border);
   margin: 0 auto 20px;
 }
+.desktop-brand {
+  display: none;
+}
 @media (min-width: 840px) {
+  .mobile-brand {
+    display: none;
+  }
+  .desktop-brand {
+    display: flex;
+    position: fixed;
+    left: 20px;
+    top: 28px;
+    width: 140px;
+  }
+  .app-content {
+    margin-left: 180px;
+  }
   .trip-nav {
     top: 100px;
     bottom: 0;
@@ -253,9 +269,6 @@ select {
   }
   .trip-nav a {
     flex-direction: row;
-  }
-  .trip-content {
-    margin-left: 180px;
   }
   .fab {
     bottom: 32px;

@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
-import { Compass } from 'lucide-react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { database } from '@/data/db'
+import { currentEngine } from '@/sync-runtime'
+import { TripForm } from './trip-management'
+import { ResponsiveOverlay } from '@/ui/responsive-overlay'
 import { api } from '@/api/client'
 import type { components } from '@/api/schema'
 import { useSession } from '@/platform/session'
@@ -10,27 +14,51 @@ import { Card } from '@/ui/components/card'
 import { errorMessage } from './auth-utils'
 export function MyTrips() {
   const user = useSession((s) => s.currentUser)
+  const online = useOnline()
+  const status = useSession((s) => s.status)
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const trips = useLiveQuery(
+    () => database(user!.id).trips.where('access').equals('ok').toArray(),
+    [user!.id],
+    [],
+  )
   return (
     <main className="page stack">
       <div>
         <p className="muted">你好，{user?.nickname}</p>
         <h1>我的行程</h1>
       </div>
-      <Card>
-        <div
-          className="stack"
-          style={{ textAlign: 'center', padding: '40px 0' }}
-        >
-          <Compass
-            size={48}
-            style={{ margin: 'auto', color: 'var(--primary)' }}
-          />
-          <h2>下一段旅程，从这里开始</h2>
-          <p className="muted">
-            行程管理即将上线。你的旅途，即使离线也能随时查看。
+      {trips.map((trip) => (
+        <Card key={trip.id}>
+          <Link to={`/trips/${trip.id}`}>
+            <h2>{trip.name}</h2>
+          </Link>
+          <p>
+            {trip.startDate} — {trip.endDate}
           </p>
-        </div>
-      </Card>
+          <p>{trip.role === 'owner' ? '所有者' : '成员'}</p>
+        </Card>
+      ))}
+      {!trips.length && <p className="muted">下一段旅程，从这里开始</p>}
+      <Button
+        disabled={!online || status !== 'authenticated'}
+        onClick={() => setOpen(true)}
+      >
+        新建行程
+      </Button>
+      <ResponsiveOverlay open={open} onOpenChange={setOpen} title="新建行程">
+        <TripForm
+          onSave={async (values) => {
+            const { data } = await api.POST('/api/trips', { body: values })
+            if (data) {
+              await currentEngine()?.discover()
+              setOpen(false)
+              navigate(`/trips/${data.id}`)
+            }
+          }}
+        />
+      </ResponsiveOverlay>
     </main>
   )
 }
@@ -92,7 +120,10 @@ export function JoinTrip() {
         params: { path: { token } },
       })
       sessionStorage.removeItem('wp:join')
-      if (data) navigate(`/trips/${data.id}`, { replace: true })
+      if (data) {
+        await currentEngine()?.discover()
+        navigate(`/trips/${data.id}`, { replace: true })
+      }
     } catch (err) {
       setError(errorMessage(err))
     } finally {

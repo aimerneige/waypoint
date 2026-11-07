@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
+import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { api, ApiError, sessionEvents } from '@/api/client'
+import { database, deleteDatabase } from '@/data/db'
 import {
   bootstrapSession,
   saveUser,
@@ -84,4 +86,19 @@ it('allows local logout of an already expired session', async () => {
     status: 'anonymous',
   })
   expect(localStorage.getItem('wp:lastUser')).toBeNull()
+})
+it('clears only the logged-out database and can reopen it on the next login', async () => {
+  saveUser(user)
+  const own = database(user.id)
+  const other = database('other-user')
+  await own.meta.put({ key: 'test', value: 'private' })
+  await other.meta.put({ key: 'test', value: 'other' })
+  vi.spyOn(api, 'POST').mockRejectedValue(new ApiError('unauthorized', '', 401))
+  await logoutSession()
+  const reopened = database(user.id)
+  expect(reopened.name).toBe('waypoint-u-user-1')
+  expect(await reopened.meta.get('test')).toBeUndefined()
+  expect((await other.meta.get('test'))?.value).toBe('other')
+  await deleteDatabase(user.id)
+  await deleteDatabase('other-user')
 })
