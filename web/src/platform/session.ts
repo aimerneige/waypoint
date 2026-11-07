@@ -4,6 +4,7 @@ import { api, ApiError, sessionEvents } from '@/api/client'
 import type { components } from '@/api/schema'
 import { auth } from './auth'
 import { deleteDatabase } from '@/data/db'
+import { settleFileDownloads } from '@/data/voucher-files'
 type User = components['schemas']['User']
 const userSchema = z.object({
   id: z.string(),
@@ -88,6 +89,7 @@ export async function clearSession() {
   const user = useSession.getState().currentUser
   useSession.setState({ status: 'anonymous' })
   if (user) {
+    await settleFileDownloads(user.id)
     await deleteDatabase(user.id)
     await clearCredentialCache(user.id)
   }

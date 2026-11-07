@@ -638,3 +638,22 @@ textarea {
     grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
   }
 }
+/* 文件画布保持原始比例，较大的页面由查看区域滚动。 */
+.voucher-pages {
+  max-height: 58dvh;
+  overflow: auto;
+  display: grid;
+  gap: 1rem;
+}
+.voucher-pages canvas {
+  background: white;
+}
+.voucher-image {
+  overflow: hidden;
+  max-height: 58dvh;
+}
+.voucher-image img {
+  max-width: 100%;
+  max-height: 54dvh;
+  object-fit: contain;
+}

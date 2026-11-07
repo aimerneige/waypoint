@@ -39,6 +39,16 @@ type EntityState struct {
 	VisibleToUserID pgtype.UUID
 }
 
+type File struct {
+	ID         pgtype.UUID
+	TripID     pgtype.UUID
+	UploaderID pgtype.UUID
+	Mime       string
+	Size       int64
+	Sha256     string
+	CreatedAt  pgtype.Timestamptz
+}
+
 type Invite struct {
 	ID        pgtype.UUID
 	TripID    pgtype.UUID

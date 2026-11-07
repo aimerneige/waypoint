@@ -5,6 +5,8 @@ import { ActionMenu } from '@/ui/action-menu'
 import { ListCard } from '@/ui/list-card'
 import { LedgerRetry } from './ledger'
 import { PackingPollsRetry } from './packing-polls-retry'
+import { VoucherSelect, VoucherRetry } from './vouchers'
+import { VoucherLinks } from './voucher-viewer'
 import {
   DndContext,
   MouseSensor,
@@ -111,8 +113,14 @@ const labels: Record<string, string> = {
   closedAt: '关闭时间',
   pollId: '所属投票',
   text: '选项内容',
+  type: '凭证类型',
+  fileId: '文件',
+  mime: '文件格式',
+  size: '文件大小',
+  visibility: '可见性',
 }
 const entityLabels: Record<string, string> = {
+  voucher: '凭证',
   packing_item: '行李物品',
   poll: '投票',
   poll_option: '投票选项',
@@ -162,6 +170,9 @@ export function ItemEditor({
     ),
   )
   const [busy, setBusy] = useState(false)
+  const [voucherIds, setVoucherIds] = useState<string[]>(
+    (initial.voucherIds as string[] | undefined) ?? [],
+  )
   const [history, setHistory] = useState(false)
   const expired = useSession((s) => s.status !== 'authenticated')
   return (
@@ -198,6 +209,9 @@ export function ItemEditor({
               title,
               date,
               place: place || null,
+              ...(voucherIds.length || initial.voucherIds
+                ? { voucherIds }
+                : {}),
               ...Object.fromEntries(
                 Object.entries(extra).map(([k, v]) => [k, v || null]),
               ),
@@ -214,7 +228,9 @@ export function ItemEditor({
                 ? all
                 : Object.fromEntries(
                     Object.entries(all).filter(
-                      ([key, v]) => v !== (baseline[key] ?? null),
+                      ([key, v]) =>
+                        JSON.stringify(v) !==
+                        JSON.stringify(baseline[key] ?? null),
                     ),
                   )
             await writeEntity(
@@ -310,6 +326,12 @@ export function ItemEditor({
             }
           />
         </label>
+        <VoucherSelect
+          db={db}
+          tripId={trip.id}
+          selected={voucherIds}
+          onChange={setVoucherIds}
+        />
         <Button loading={busy} disabled={expired}>
           保存条目
         </Button>
@@ -820,6 +842,11 @@ function ItineraryCard({
           />
         }
       />
+      <VoucherLinks
+        db={db}
+        tripId={tripId}
+        ids={(f.voucherIds as string[] | undefined) ?? []}
+      />
       {desktop && (
         <Button
           variant="ghost"
@@ -1055,6 +1082,15 @@ export function RejectedChanges() {
               entity={entity}
               onSaved={async () => {
                 await db.rejected.delete(retry.opId)
+                setRetry(null)
+              }}
+            />
+          ) : retry.entity === 'voucher' &&
+            (retry.kind === 'update' || retry.kind === 'create') ? (
+            <VoucherRetry
+              db={db}
+              retry={retry}
+              done={async () => {
                 setRetry(null)
               }}
             />

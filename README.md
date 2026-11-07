@@ -74,7 +74,11 @@ docker compose down
 
 默认站点为纯 HTTP，主机端口 8088/8443，可通过 WEB_HTTP_PORT/WEB_HTTPS_PORT 调整。正式 HTTPS 部署应配置站点及外部端口转发。所有服务带健康检查；备份健康检查检测循环心跳，备份失败导致进程退出并由 Compose 重启。备份容器每日执行一次，BACKUP_ON_START=1 可启动即执行。每次备份目录同时包含 PostgreSQL custom-format dump 和 uploads.tar.gz，成功后才发布目录；保留由 BACKUP_KEEP_DAYS 控制（默认 14，按整日清理）。`down` 保留四个数据卷，禁止误用 `down -v`。
 
-恢复时先停止 API 写入，在独立数据库验证 `pg_restore`，同时还原配套 uploads 归档后再切换。不要只恢复其中一份。当前骨架没有上传写入，后续上传业务需配合备份一致性策略。
+恢复时先停止 API 写入，在独立数据库验证 `pg_restore`，同时还原配套 uploads 归档后再切换。不要只恢复其中一份。
+
+M4 文件路径为 `UPLOAD_DIR/<tripId>/<fileId>`，使用临时文件、fsync、原子 rename 后提交数据库元数据；文件内容不可变，上传幂等。凭证软删除保留文件，API 每小时清理超过 24 小时且无任何凭证引用的孤儿文件，硬删除行程会删除整个目录。
+
+备份脚本先 `pg_dump` 再打包 uploads；目录同时发布并不代表两者来自同一时点。日常在线备份中，新上传文件可能多于数据库快照（恢复后可清理孤儿）；并发孤儿清理或删除行程可能使数据库快照中的文件缺失。需要严格一致性时，先 `docker compose stop api` 暂停上传、行程删除与定时清理，再运行 `docker compose run --rm --no-deps --entrypoint /bin/sh backup /backup/run.sh`，成功后 `docker compose start api`；只操作本项目服务，不删除卷。也可在停止 API 后对数据库和 uploads 做同一时点的卷快照。恢复前核对数据库 files 表所引用文件存在且 SHA-256 一致，再启动 API。
 
 MAX_UPLOAD_MB 默认 32；CADDY_MAX_BODY_SIZE 默认 33MB（请求封装余量），调整时同步修改。CORS_ALLOWED_ORIGINS 只预留配置，尚未启用跨域行为。PWA 仅预缓存应用外壳，不缓存 API；更新策略为 prompt，页面提示后由用户点击刷新。字体与图标均随应用打包，不访问外部 CDN。
 

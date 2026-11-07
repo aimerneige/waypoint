@@ -511,6 +511,13 @@ type VerifyEmailParams struct {
 	XCSRFToken *string `json:"X-CSRF-Token,omitempty"`
 }
 
+// DownloadFileParams defines parameters for DownloadFile.
+type DownloadFileParams struct {
+	Exp int64              `form:"exp" json:"exp"`
+	Sig string             `form:"sig" json:"sig"`
+	U   openapi_types.UUID `form:"u" json:"u"`
+}
+
 // UpdateMeParams defines parameters for UpdateMe.
 type UpdateMeParams struct {
 	XCSRFToken *string `json:"X-CSRF-Token,omitempty"`
@@ -602,6 +609,9 @@ type ServerInterface interface {
 	// (POST /api/auth/verify-email)
 	VerifyEmail(w http.ResponseWriter, r *http.Request, params VerifyEmailParams)
 
+	// (GET /api/files/{fileId})
+	DownloadFile(w http.ResponseWriter, r *http.Request, fileId openapi_types.UUID, params DownloadFileParams)
+
 	// (GET /api/healthz)
 	Healthz(w http.ResponseWriter, r *http.Request)
 
@@ -649,6 +659,12 @@ type ServerInterface interface {
 
 	// (GET /api/trips/{tripId}/events)
 	TripEvents(w http.ResponseWriter, r *http.Request, tripId openapi_types.UUID)
+
+	// (PUT /api/trips/{tripId}/files/{fileId})
+	UploadFile(w http.ResponseWriter, r *http.Request, tripId openapi_types.UUID, fileId openapi_types.UUID)
+
+	// (POST /api/trips/{tripId}/files/{fileId}/link)
+	FileLink(w http.ResponseWriter, r *http.Request, tripId openapi_types.UUID, fileId openapi_types.UUID)
 
 	// (GET /api/trips/{tripId}/history)
 	GetHistory(w http.ResponseWriter, r *http.Request, tripId openapi_types.UUID, params GetHistoryParams)
@@ -733,6 +749,11 @@ func (_ Unimplemented) VerifyEmail(w http.ResponseWriter, r *http.Request, param
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (GET /api/files/{fileId})
+func (_ Unimplemented) DownloadFile(w http.ResponseWriter, r *http.Request, fileId openapi_types.UUID, params DownloadFileParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /api/healthz)
 func (_ Unimplemented) Healthz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -810,6 +831,16 @@ func (_ Unimplemented) PatchTrip(w http.ResponseWriter, r *http.Request, tripId 
 
 // (GET /api/trips/{tripId}/events)
 func (_ Unimplemented) TripEvents(w http.ResponseWriter, r *http.Request, tripId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /api/trips/{tripId}/files/{fileId})
+func (_ Unimplemented) UploadFile(w http.ResponseWriter, r *http.Request, tripId openapi_types.UUID, fileId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /api/trips/{tripId}/files/{fileId}/link)
+func (_ Unimplemented) FileLink(w http.ResponseWriter, r *http.Request, tripId openapi_types.UUID, fileId openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1219,6 +1250,74 @@ func (siw *ServerInterfaceWrapper) VerifyEmail(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// DownloadFile operation middleware
+func (siw *ServerInterfaceWrapper) DownloadFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "fileId" -------------
+	var fileId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "fileId", chi.URLParam(r, "fileId"), &fileId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "fileId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DownloadFileParams
+
+	// ------------- Required query parameter "exp" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "exp", r.URL.Query(), &params.Exp, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "exp"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "exp", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "sig" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "sig", r.URL.Query(), &params.Sig, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "sig"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sig", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "u" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "u", r.URL.Query(), &params.U, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "u"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "u", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DownloadFile(w, r, fileId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Healthz operation middleware
 func (siw *ServerInterfaceWrapper) Healthz(w http.ResponseWriter, r *http.Request) {
 
@@ -1557,6 +1656,76 @@ func (siw *ServerInterfaceWrapper) TripEvents(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.TripEvents(w, r, tripId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UploadFile operation middleware
+func (siw *ServerInterfaceWrapper) UploadFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tripId" -------------
+	var tripId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tripId", chi.URLParam(r, "tripId"), &tripId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tripId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "fileId" -------------
+	var fileId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "fileId", chi.URLParam(r, "fileId"), &fileId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "fileId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UploadFile(w, r, tripId, fileId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// FileLink operation middleware
+func (siw *ServerInterfaceWrapper) FileLink(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tripId" -------------
+	var tripId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tripId", chi.URLParam(r, "tripId"), &tripId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tripId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "fileId" -------------
+	var fileId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "fileId", chi.URLParam(r, "fileId"), &fileId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "fileId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.FileLink(w, r, tripId, fileId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2076,6 +2245,15 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/api/trips/{tripId}/files/{fileId}", wrapper.UploadFile)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/trips/{tripId}/files/{fileId}/link", wrapper.FileLink)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/files/{fileId}", wrapper.DownloadFile)
+	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/healthz", wrapper.Healthz)
 	})
@@ -3948,6 +4126,44 @@ func (response VerifyEmaildefaultJSONResponse) VisitVerifyEmailResponse(w http.R
 	return err
 }
 
+type DownloadFileRequestObject struct {
+	FileId openapi_types.UUID `json:"fileId"`
+	Params DownloadFileParams
+}
+
+type DownloadFileResponseObject interface {
+	VisitDownloadFileResponse(w http.ResponseWriter) error
+}
+
+type DownloadFile200Response struct {
+}
+
+func (response DownloadFile200Response) VisitDownloadFileResponse(w http.ResponseWriter) error {
+	w.WriteHeader(200)
+	return nil
+}
+
+type DownloadFiledefaultJSONResponse struct {
+	Body       Error
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response DownloadFiledefaultJSONResponse) VisitDownloadFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type HealthzRequestObject struct {
 }
 
@@ -4980,6 +5196,101 @@ func (response TripEventsdefaultJSONResponse) VisitTripEventsResponse(w http.Res
 	return err
 }
 
+type UploadFileRequestObject struct {
+	TripId      openapi_types.UUID `json:"tripId"`
+	FileId      openapi_types.UUID `json:"fileId"`
+	ContentType string
+	Body        io.Reader
+}
+
+type UploadFileResponseObject interface {
+	VisitUploadFileResponse(w http.ResponseWriter) error
+}
+
+type UploadFile200JSONResponse struct {
+	Sha256 string `json:"sha256"`
+}
+
+func (response UploadFile200JSONResponse) VisitUploadFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadFiledefaultJSONResponse struct {
+	Body       Error
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response UploadFiledefaultJSONResponse) VisitUploadFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type FileLinkRequestObject struct {
+	TripId openapi_types.UUID `json:"tripId"`
+	FileId openapi_types.UUID `json:"fileId"`
+}
+
+type FileLinkResponseObject interface {
+	VisitFileLinkResponse(w http.ResponseWriter) error
+}
+
+type FileLink200JSONResponse struct {
+	Sha256 string `json:"sha256"`
+	Url    string `json:"url"`
+}
+
+func (response FileLink200JSONResponse) VisitFileLinkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type FileLinkdefaultJSONResponse struct {
+	Body       Error
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response FileLinkdefaultJSONResponse) VisitFileLinkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetHistoryRequestObject struct {
 	TripId openapi_types.UUID `json:"tripId"`
 	Params GetHistoryParams
@@ -5530,6 +5841,9 @@ type StrictServerInterface interface {
 	// (POST /api/auth/verify-email)
 	VerifyEmail(ctx context.Context, request VerifyEmailRequestObject) (VerifyEmailResponseObject, error)
 
+	// (GET /api/files/{fileId})
+	DownloadFile(ctx context.Context, request DownloadFileRequestObject) (DownloadFileResponseObject, error)
+
 	// (GET /api/healthz)
 	Healthz(ctx context.Context, request HealthzRequestObject) (HealthzResponseObject, error)
 
@@ -5577,6 +5891,12 @@ type StrictServerInterface interface {
 
 	// (GET /api/trips/{tripId}/events)
 	TripEvents(ctx context.Context, request TripEventsRequestObject) (TripEventsResponseObject, error)
+
+	// (PUT /api/trips/{tripId}/files/{fileId})
+	UploadFile(ctx context.Context, request UploadFileRequestObject) (UploadFileResponseObject, error)
+
+	// (POST /api/trips/{tripId}/files/{fileId}/link)
+	FileLink(ctx context.Context, request FileLinkRequestObject) (FileLinkResponseObject, error)
 
 	// (GET /api/trips/{tripId}/history)
 	GetHistory(ctx context.Context, request GetHistoryRequestObject) (GetHistoryResponseObject, error)
@@ -5918,6 +6238,33 @@ func (sh *strictHandler) VerifyEmail(w http.ResponseWriter, r *http.Request, par
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(VerifyEmailResponseObject); ok {
 		if err := validResponse.VisitVerifyEmailResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DownloadFile operation middleware
+func (sh *strictHandler) DownloadFile(w http.ResponseWriter, r *http.Request, fileId openapi_types.UUID, params DownloadFileParams) {
+	var request DownloadFileRequestObject
+
+	request.FileId = fileId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DownloadFile(ctx, request.(DownloadFileRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DownloadFile")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DownloadFileResponseObject); ok {
+		if err := validResponse.VisitDownloadFileResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -6355,6 +6702,63 @@ func (sh *strictHandler) TripEvents(w http.ResponseWriter, r *http.Request, trip
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(TripEventsResponseObject); ok {
 		if err := validResponse.VisitTripEventsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UploadFile operation middleware
+func (sh *strictHandler) UploadFile(w http.ResponseWriter, r *http.Request, tripId openapi_types.UUID, fileId openapi_types.UUID) {
+	var request UploadFileRequestObject
+
+	request.TripId = tripId
+	request.FileId = fileId
+	request.ContentType = r.Header.Get("Content-Type")
+
+	request.Body = r.Body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UploadFile(ctx, request.(UploadFileRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UploadFile")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UploadFileResponseObject); ok {
+		if err := validResponse.VisitUploadFileResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// FileLink operation middleware
+func (sh *strictHandler) FileLink(w http.ResponseWriter, r *http.Request, tripId openapi_types.UUID, fileId openapi_types.UUID) {
+	var request FileLinkRequestObject
+
+	request.TripId = tripId
+	request.FileId = fileId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.FileLink(ctx, request.(FileLinkRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "FileLink")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(FileLinkResponseObject); ok {
+		if err := validResponse.VisitFileLinkResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -140,3 +140,20 @@
 - `scope=personal` 表示每位成员都要带，各自勾选；可选 `ownerUserId` 表示仅此成员需要带，仅本人显示与勾选。
 - `scope=shared` 必须有当前成员 `assigneeUserId`，通过 `packed` 和服务端按 actor 记录的 `packedBy` 表示装箱状态，仅负责人或 owner 可改 `packed`。同时改负责人和装箱状态按原负责人鉴权。
 - 用户模板是用户级在线数据，不属于行程；前端按用户缓存，离线可套用。并发创建用用户行锁保证最多 50 份，每份最多 200 项。
+
+## D20. 凭证关联只保存一处
+
+- 关联只存在 `itinerary_item.voucherIds`；凭证详情中的关联行程由此反向推导，不保存 linkedItineraryIds。
+- 行程卡片与多选只展示当前用户可见的未删除凭证，私有凭证的标题与文件不进入共享行程状态。
+
+## D21. 凭证可见性创建后不可修改
+
+- 私有凭证的实体与所有 op 设置 `visible_to_user_id=actor`；pull、snapshot、history 均过滤。
+- update 出现 visibility 即拒绝 `invalid_op`。trip→private 无法撤回他人设备已有数据，private→trip 又会缺失他人未收到的历史。
+- 更改可见性用同一文件创建新 entityId 并删除旧凭证，同时替换行程项关联。trip→private 提示“他人设备上已缓存的旧文件无法远程清除”。
+
+## D22. 客户端生成文件 ID，先上传文件再推操作
+
+- 离线文件以 Blob 存入按用户隔离的 IndexedDB 上传队列。同步先幂等 PUT 文件，成功后才推送引用它的 voucher op。
+- 服务端校验文件存在、属于行程、上传者等于 actor，并核对 MIME 与大小。409/415/413 为确定性文件失败，回滚对应凭证并进入未生效列表；网络错误沿用退避重试。
+- 下载链接有效期五分钟，HMAC 绑定 fileId、到期时间和 userId。后台离线缓存验证大小与 SHA-256，用户可持久取消单文件自动缓存。

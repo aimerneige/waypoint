@@ -2,6 +2,7 @@ import { ApiError, apiFetch } from '@/api/client'
 import type { components } from '@/api/schema'
 import { applyServer } from '@/domain/ops'
 import { type Database, recomputeTrip, type Trip } from '@/data/db'
+import { uploadDependencies, autoCache } from '@/data/voucher-files'
 type Schema = components['schemas']
 export interface Transport {
   list(): Promise<Schema['TripList']>
@@ -225,12 +226,15 @@ export class SyncEngine {
     }
     while (!this.stopped && !this.upgradeRequired) {
       if ((await this.db.trips.get(id))?.access !== 'ok') return
-      const batch = (
+      let batch = (
         await this.db.outbox.where('tripId').equals(id).sortBy('localId')
       )
         .filter((op) => op.acceptedSeq === undefined)
         .slice(0, 200)
       if (!batch.length) break
+      batch = await uploadDependencies(this.db, batch, () => !this.stopped)
+      if (this.stopped) return
+      if (!batch.length) continue
       const result = await this.net.push(
         id,
         batch.map((op) => ({
@@ -396,5 +400,6 @@ export class SyncEngine {
     const timer = this.retries.get(id)
     if (timer) clearTimeout(timer)
     this.retries.delete(id)
+    void autoCache(this.db, id, () => !this.stopped).catch(() => {})
   }
 }

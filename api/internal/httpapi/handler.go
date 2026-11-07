@@ -19,6 +19,7 @@ type Server struct {
 	mail                  *mailQueue
 	ipLimit, accountLimit *limiter
 	hub                   *eventHub
+	storage               Storage
 }
 
 func New(pool *pgxpool.Pool, c config.Config, m Mailer) (http.Handler, func()) {
@@ -38,7 +39,9 @@ func New(pool *pgxpool.Pool, c config.Config, m Mailer) (http.Handler, func()) {
 		account = 20
 	}
 	s := &Server{pool: pool, queries: db.New(pool), config: c, mail: q, ipLimit: newLimiter(ip, time.Minute/time.Duration(ip)), accountLimit: newLimiter(account, time.Minute/time.Duration(account)), hub: newEventHub()}
-	return newHandler(s), q.close
+	s.storage = LocalStorage{Root: c.UploadDir}
+	stop := s.startFileCleanup()
+	return newHandler(s), func() { stop(); q.close() }
 }
 func newHandler(s *Server) http.Handler {
 	strict := NewStrictHandlerWithOptions(s, []StrictMiddlewareFunc{requireLogin}, StrictHTTPServerOptions{

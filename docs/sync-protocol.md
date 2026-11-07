@@ -27,7 +27,7 @@
 
 M2 保持 schemaVersion 1，增加 expense、exchange、settlement_transfer 与 trip_rates。字段与完整状态规则见 `docs/tasks/m2-ledger-settlement.md` 第 2 节。默认汇率仅客户端 update；换汇只允许创建者修改；现金账目的金额、币种、方式及付款人只允许原付款人修改。旧行程补建 trip_rates 时写入 server create 操作并递增序号。
 
-服务端全局序列无空洞，但用户可见的序列可以跳号：`visible_to_user_id` 非空的操作仅该用户可见。不能用序号是否连续判断丢失。M0 没有可创建私有实体的客户端接口，此字段为 M4 预留。
+服务端全局序列无空洞，但用户可见的序列可以跳号：`visible_to_user_id` 非空的实体与操作仅该用户可见。不能用序号是否连续判断丢失。M4 的 private voucher 在创建时设置此字段，后续所有操作继承；pull/snapshot/history 的实体、changes 与计数均按此过滤。
 
 ## 实体与应用规则
 
@@ -56,7 +56,19 @@ update 按字段最后写入胜出：`fieldSeq[field] > baseSeq[field]` 且服�
 
 ## 推送
 
-`POST /api/trips/{tripId}/ops`，请求 `{ "ops": [op, ...] }`，最多 200 条、请求体最多 2 MiB。默认其他请求上限为 16 KiB；未来 `POST /api/trips/{tripId}/uploads` 已预留按 `MAX_UPLOAD_MB` 计算的路由上限，目前没有上传接口。
+`POST /api/trips/{tripId}/ops`，请求 `{ "ops": [op, ...] }`，最多 200 条、请求体最多 2 MiB。默认其他请求上限为 16 KiB；`PUT /api/trips/{tripId}/files/{fileId}` 上限为 `MAX_UPLOAD_MB`（默认 32 MiB）。
+
+### M4 文件上传与签名下载
+
+voucher 字段：type=flight/hotel/ticket/visa/insurance/other、title（1–200）、fileId（UUID）、mime（PDF/JPEG/PNG）、size（正整数）、visibility=trip/private、note（可空 ≤500）。任何成员可创建；仅上传者可 update/delete/restore，owner 额外可 delete 全组可见凭证。update 带 visibility 一律 invalid_op；可见性变更创建新实体并删除旧实体。关联只写 itinerary_item.voucherIds。
+
+客户端先把 Blob 与生成的 fileId 存入 IndexedDB，再创建本地 voucher。同步推送前串行上传所依赖的文件（成功进度 100%）；文件未成功则不推其操作。PUT 原始字节、Content-Type 为 MIME，服务端校验魔数、大小和成员身份。相同 fileId、上传者、行程与 SHA-256 返回 200；内容或上传者冲突返回 409 file_conflict。服务端应用 voucher 时核对文件所属行程、上传者=actor、MIME 与 size。HEIC 只在前端转换，服务端不接受。
+
+413 payload_too_large / 415 unsupported_media_type / 409 file_conflict 为确定性上传失败，对应 voucher op 回滚并加入客户端未生效列表，中文原因为“文件过大 / 格式不支持 / 文件冲突”。网络/5xx 保留 Blob 和 op，沿用同步指数退避。文件错误不写服务端 rejected_ops（op 尚未推送）。
+
+`POST /api/trips/{tripId}/files/{fileId}/link` 需要当前成员，且文件被可见未删除凭证引用或本人是上传者。返回 `{url,sha256}`，SHA-256 用于客户端缓存完整性校验。地址 `/api/files/{fileId}?exp=<unix>&sig=<hex>&u=<userId>` 的签名为 HMAC-SHA256(SIGNING_KEY, `fileId|exp|userId`)，有效五分钟；GET 无需 Cookie，签名/用户参数篡改或过期返回 403 invalid_signature，支持 Range 206。响应含 MIME、nosniff、inline、private max-age=300 和 CSP sandbox。
+
+用户文件缓存键为 `/offline-files/<userId>/<fileId>`；自动下载并发 2、省流量模式仅手动。取消离线选择持久化；退出登录等待在途缓存任务结束并清空用户数据库和文件缓存。软删除凭证保留文件；孤儿文件超过 24 小时后由每小时任务清理，行程硬删除同时删除文件目录。
 
 批次严格按输入顺序执行，每条一个事务；单条业务拒绝不阻断后续操作。并发请求在同一行程行锁上串行提交；数据库异常或权限中途失效会停止当前请求，先前已提交的操作保持有效。此时重发原批次，由 opId 去重恢复。不同请求间无整批原子性，不要假设批内序号连续。
 

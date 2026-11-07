@@ -76,3 +76,68 @@ export const api = createClient<paths>({
   baseUrl,
   fetch: apiFetch,
 })
+
+export async function apiUpload(
+  path: string,
+  file: Blob,
+  progress: (percent: number) => void,
+): Promise<{ sha256: string }> {
+  const headers = await auth.getAuthHeaders()
+  if (auth.mode === 'cookie')
+    headers['X-CSRF-Token'] =
+      csrfCookie() ?? (await csrf(AbortSignal.timeout(15000)))
+  const send = () =>
+    new Promise<{ sha256: string }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('PUT', `${baseUrl}${path}`)
+      xhr.withCredentials = true
+      xhr.timeout = 120000
+      xhr.setRequestHeader('Content-Type', file.type)
+      for (const [key, value] of Object.entries(headers))
+        xhr.setRequestHeader(key, value)
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable)
+          progress(Math.min(99, Math.round((event.loaded / event.total) * 100)))
+      }
+      xhr.onerror = () => reject(new TypeError('文件上传网络错误'))
+      xhr.ontimeout = () => reject(new TypeError('文件上传超时'))
+      xhr.onabort = () => reject(new TypeError('文件上传已中断'))
+      xhr.onload = () => {
+        let body: {
+          sha256?: string
+          error?: { code: string; message: string }
+        } = {}
+        try {
+          body = JSON.parse(xhr.responseText)
+        } catch {
+          /* 非 JSON 错误交给状态码处理。 */
+        }
+        if (xhr.status >= 200 && xhr.status < 300 && body.sha256)
+          resolve({ sha256: body.sha256 })
+        else {
+          if (xhr.status === 401)
+            sessionEvents.dispatchEvent(new Event('expired'))
+          reject(
+            new ApiError(
+              body.error?.code ?? 'upload_failed',
+              body.error?.message ?? '上传失败，请重试',
+              xhr.status,
+            ),
+          )
+        }
+      }
+      xhr.send(file)
+    })
+  try {
+    return await send()
+  } catch (error) {
+    if (!(
+      error instanceof ApiError &&
+      error.code === 'csrf_invalid' &&
+      auth.mode === 'cookie'
+    ))
+      throw error
+    headers['X-CSRF-Token'] = await csrf(AbortSignal.timeout(15000))
+    return send()
+  }
+}

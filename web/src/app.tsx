@@ -23,6 +23,7 @@ import { Wishlist } from './features/wishlist'
 import { Ledger } from './features/ledger'
 import { Packing } from './features/packing'
 import { Polls } from './features/polls'
+import { Vouchers } from './features/vouchers'
 function Root() {
   const status = useSession((s) => s.status)
   const upgrade = useSyncStatus((s) => s.upgrade)
@@ -159,12 +160,7 @@ export const router = createBrowserRouter([
                   { path: 'settings', element: <TripSettings /> },
                   { path: 'polls', element: <Polls /> },
                   { path: 'polls/:pollId', element: <Polls /> },
-                  ...([['documents', '凭证']] as const).map(
-                    ([path, title]) => ({
-                      path,
-                      element: <TripPlaceholder title={title} />,
-                    }),
-                  ),
+                  { path: 'documents', element: <Vouchers /> },
                 ],
               },
             ],

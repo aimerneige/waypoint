@@ -149,7 +149,7 @@ func (s *Server) middleware(next http.Handler) http.Handler {
 		}
 		limit := s.bodyLimit(r)
 		r.Body = http.MaxBytesReader(w, r.Body, limit)
-		if r.Body != nil {
+		if r.Body != nil && !isFileUpload(r) {
 			data, err := io.ReadAll(r.Body)
 			if err != nil {
 				if isBodyTooLarge(err) {
@@ -172,7 +172,7 @@ func requireLogin(next StrictHandlerFunc, operation string) StrictHandlerFunc {
 				return nil, fail(401, "unauthorized", "请先登录")
 			}
 		default:
-			if operation != "Healthz" && operation != "Readyz" && operation != "GetCSRF" && operation != "Register" && operation != "Login" && operation != "VerifyEmail" && operation != "ForgotPassword" && operation != "ResetPassword" && operation != "PreviewInvite" && !state(ctx).authenticated {
+			if operation != "DownloadFile" && operation != "Healthz" && operation != "Readyz" && operation != "GetCSRF" && operation != "Register" && operation != "Login" && operation != "VerifyEmail" && operation != "ForgotPassword" && operation != "ResetPassword" && operation != "PreviewInvite" && !state(ctx).authenticated {
 				return nil, fail(401, "unauthorized", "请先登录")
 			}
 		}
@@ -181,11 +181,22 @@ func requireLogin(next StrictHandlerFunc, operation string) StrictHandlerFunc {
 }
 
 func isBodyTooLarge(err error) bool { var e *http.MaxBytesError; return errors.As(err, &e) }
+func isFileUpload(r *http.Request) bool {
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	return r.Method == http.MethodPut && len(parts) == 5 && parts[0] == "api" && parts[1] == "trips" && parts[3] == "files"
+}
 func (s *Server) bodyLimit(r *http.Request) int64 {
 	if strings.HasPrefix(r.URL.Path, "/api/me/packing-templates") {
 		return 256 * 1024
 	}
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if isFileUpload(r) {
+		mb := s.config.MaxUploadMB
+		if mb <= 0 {
+			mb = 32
+		}
+		return int64(mb) * 1024 * 1024
+	}
 	if r.Method == http.MethodPost && len(parts) == 4 && parts[0] == "api" && parts[1] == "trips" {
 		if parts[3] == "ops" {
 			return 2 * 1024 * 1024

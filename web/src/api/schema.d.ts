@@ -4,6 +4,62 @@
  */
 
 export interface paths {
+    "/api/trips/{tripId}/files/{fileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tripId: string;
+                fileId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** @description 原始 PDF/JPEG/PNG 字节，校验魔数，最大 MAX_UPLOAD_MB；客户端生成文件 UUID。同内容重试幂等，不同内容或上传者返回 file_conflict。 */
+        put: operations["uploadFile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/trips/{tripId}/files/{fileId}/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tripId: string;
+                fileId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["fileLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/files/{fileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description 无需 Cookie；HMAC 绑定 fileId、exp、u；支持 Range。 */
+        get: operations["downloadFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/healthz": {
         parameters: {
             query?: never;
@@ -757,6 +813,88 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    uploadFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tripId: string;
+                fileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "*/*": string;
+            };
+        };
+        responses: {
+            /** @description 已存储 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        sha256: string;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    fileLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tripId: string;
+                fileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 五分钟有效的签名地址 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        url: string;
+                        sha256: string;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    downloadFile: {
+        parameters: {
+            query: {
+                exp: number;
+                sig: string;
+                u: string;
+            };
+            header?: never;
+            path: {
+                fileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 原始文件（或 Range 206） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
     healthz: {
         parameters: {
             query?: never;

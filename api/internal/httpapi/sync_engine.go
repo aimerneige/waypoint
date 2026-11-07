@@ -404,6 +404,9 @@ func (s *Server) applyOp(ctx context.Context, q *db.Queries, op ClientOp, origin
 		}
 	}
 	if origin == "client" {
+		if err := s.validateVoucher(ctx, q, op, e, fields); err != nil {
+			return OpResult{}, err
+		}
 		if err := s.validatePackingPollState(ctx, q, op, e, fields); err != nil {
 			return OpResult{}, err
 		}
@@ -417,6 +420,9 @@ func (s *Server) applyOp(ctx context.Context, q *db.Queries, op ClientOp, origin
 	}
 	if !exists {
 		e = db.EntityState{TripID: uid(op.TripId), Entity: op.Entity, EntityID: uid(op.EntityId), CreatedBy: uid(op.ActorUserId), CreatedSeq: seq}
+		if op.Entity == "voucher" && op.Fields["visibility"] == "private" {
+			e.VisibleToUserID = uid(op.ActorUserId)
+		}
 	}
 	changes := map[string]Change{}
 	conflicts := []Conflict{}

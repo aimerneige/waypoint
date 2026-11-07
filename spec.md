@@ -126,7 +126,7 @@ op {
 | SettlementTransfer | fromUserId, toUserId, amountCny, date, note?；创建后可删除/恢复，不可 update |
 | PackingTemplate | name, items[]（系统预设 + 用户保存） |
 | PackingItem | name, category?, scope: personal/shared, ownerUserId?（personal，仅此成员需要带）, assigneeUserId（shared，当前成员必填）, packed?（shared，负责人/owner 可写）, packedBy?（服务端按 actor 写入）, checked.<userId>（personal，仅本人键可写）, sortOrder? |
-| Voucher | type（机票/酒店/门票/签证/保险/其他）, title, fileRef, mime, size, visibility: trip/private, uploadedBy, linkedItineraryIds |
+| Voucher | type（机票/酒店/门票/签证/保险/其他）, title, fileId（客户端 UUID）, mime, size, visibility: trip/private（仅 create 设置）, note?（≤500 字符）, createdBy（上传者）；linkedItineraryIds 由行程项 voucherIds 反向推导，不落库 |
 | Poll | question, multiChoice, deadline?（RFC3339）, closedAt?（仅服务器）, vote.<userId>（optionId 数组，仅本人键可写；空数组撤票）；问题/类型/截止仅创建者可改；创建者/owner 可删与关闭 |
 | PollOption | pollId, text, sortOrder?；成员可追加，仅选项创建者或投票创建者可改/删；截止后不可追加 |
 
@@ -197,7 +197,10 @@ op {
 - 可见性：全组可见 / 仅自己可见（签证、保险默认仅自己可见）。
 - 离线：自动下载当前用户可见的全部凭证到本地缓存，凭证页显示每个文件"已离线可用"状态与占用空间；可对单个文件取消离线。
 - 离线上传：文件暂存本地，联网后自动上传。
-- 图片内置查看器支持缩放；PDF 使用浏览器内置或 pdf.js 预览。
+- 文件存于用户隔离的 Cache Storage，待传 Blob 存 IndexedDB；非省流量模式在线时后台并发 2 下载，校验大小与 SHA-256；取消离线会记住选择，可手动重新离线。
+- visibility 创建后不可修改；更改可见性创建新凭证并删除旧凭证，trip→private 提醒他人缓存无法远程清除（D21）。
+- 图片使用 react-zoom-pan-pinch；PDF 使用懒加载 pdf.js 与本地打包 worker，逐页渲染并支持缩放；HEIC 魔数检测后懒加载 heic2any 转 JPEG。分享/保存通过 platform.share 分享文件，不支持时下载。
+- 上传采用先幂等 PUT 文件、后推 voucher op（D22）；仅上传者可修改、删除、恢复，owner 额外可删除全组凭证。软删除保留文件；每小时清理超过 24 小时且未被任何凭证引用的文件。
 
 ### 4.7 小投票
 - 发起人设置：问题、选项（可后续追加选项）、单选/多选、可选截止时间。

@@ -13,6 +13,14 @@ export type Entity = {
   view: State | null
 }
 export type Pending = Op & { localId?: number; acceptedSeq?: number }
+export type Upload = {
+  fileId: string
+  tripId: string
+  blob: Blob
+  uploaded: boolean
+  progress: number
+  sha256?: string
+}
 export type Notice = {
   id?: number
   tripId: string
@@ -41,6 +49,7 @@ export class Database extends Dexie {
   ops!: Table<ServerOp, [string, number]>
   notices!: Table<Notice, number>
   meta!: Table<{ key: string; value: unknown }, string>
+  uploads!: Table<Upload, string>
   constructor(public userId: string) {
     super(`waypoint-u-${userId}`)
     this.version(1).stores({
@@ -53,6 +62,7 @@ export class Database extends Dexie {
       meta: 'key',
     })
     this.version(2).stores({ notices: '++id,tripId,&key' })
+    this.version(3).stores({ uploads: 'fileId,tripId' })
   }
 }
 const databases = new Map<string, Database>()

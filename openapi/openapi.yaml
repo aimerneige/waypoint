@@ -3,6 +3,50 @@ info:
   title: Waypoint API
   version: 0.2.0
 paths:
+  /api/trips/{tripId}/files/{fileId}:
+    parameters:
+      - {in: path, name: tripId, required: true, schema: {type: string, format: uuid}}
+      - {in: path, name: fileId, required: true, schema: {type: string, format: uuid}}
+    put:
+      operationId: uploadFile
+      description: 原始 PDF/JPEG/PNG 字节，校验魔数，最大 MAX_UPLOAD_MB；客户端生成文件 UUID。同内容重试幂等，不同内容或上传者返回 file_conflict。
+      requestBody:
+        required: true
+        content:
+          '*/*':
+            schema: {type: string, format: binary}
+      responses:
+        '200':
+          description: 已存储
+          content:
+            application/json:
+              schema: {type: object, required: [sha256], properties: {sha256: {type: string}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/trips/{tripId}/files/{fileId}/link:
+    parameters:
+      - {in: path, name: tripId, required: true, schema: {type: string, format: uuid}}
+      - {in: path, name: fileId, required: true, schema: {type: string, format: uuid}}
+    post:
+      operationId: fileLink
+      responses:
+        '200':
+          description: 五分钟有效的签名地址
+          content:
+            application/json:
+              schema: {type: object, required: [url, sha256], properties: {url: {type: string}, sha256: {type: string}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/files/{fileId}:
+    get:
+      operationId: downloadFile
+      description: 无需 Cookie；HMAC 绑定 fileId、exp、u；支持 Range。
+      parameters:
+        - {in: path, name: fileId, required: true, schema: {type: string, format: uuid}}
+        - {in: query, name: exp, required: true, schema: {type: integer, format: int64}}
+        - {in: query, name: sig, required: true, schema: {type: string}}
+        - {in: query, name: u, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: 原始文件（或 Range 206）}
+        default: {$ref: '#/components/responses/Error'}
   /api/healthz:
     get:
       operationId: healthz

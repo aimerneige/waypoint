@@ -153,6 +153,9 @@ func (s *Server) DeleteTrip(ctx context.Context, r DeleteTripRequestObject) (Del
 		return nil, e
 	}
 	s.hub.terminate(r.TripId, uuid.Nil, "trip_deleted")
+	if e = s.storage.Delete(r.TripId.String(), ""); e != nil {
+		return nil, e
+	}
 	return DeleteTrip200JSONResponse{Message: "行程已删除"}, nil
 }
 func (s *Server) TransferOwner(ctx context.Context, r TransferOwnerRequestObject) (TransferOwnerResponseObject, error) {
