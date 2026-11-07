@@ -1,3 +1,4 @@
+import { LoadingList } from '@/ui/loading-list'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -13,54 +14,16 @@ import {
 import { useEntities } from '@/data/hooks'
 import { useSession } from '@/platform/session'
 import { dayLabel, tripDays } from '@/domain/format'
-import {
-  compareItems,
-  insertionKey,
-  scheduledItems,
-  sortKey,
-} from '@/domain/itinerary'
+import { scheduledItems } from '@/domain/itinerary'
 import { ResponsiveOverlay } from '@/ui/responsive-overlay'
 import { Button } from '@/ui/components/button'
-import { toast } from '@/ui/components/sonner'
+import { toast } from '@/ui/toast'
 import { HistoryList } from './itinerary'
 import { ExternalLink, GripVertical } from 'lucide-react'
 import { ActionMenu } from '@/ui/action-menu'
 import { ListCard } from '@/ui/list-card'
 
-export async function scheduleWish(
-  db: Database,
-  trip: Trip,
-  wish: Entity,
-  date: string,
-) {
-  const rows = await db.entities
-    .where('[tripId+entity]')
-    .equals([trip.id, 'itinerary_item'])
-    .toArray()
-  const items = rows
-    .flatMap((r) =>
-      r.view &&
-      !r.view.deleted &&
-      r.view.fields.date === date &&
-      !r.view.fields.startTime
-        ? [r.view]
-        : [],
-    )
-    .sort(compareItems)
-  const id = crypto.randomUUID()
-  await writeEntity(db, trip.id, 'itinerary_item', id, 'create', {
-    title: wish.view!.fields.title,
-    place: wish.view!.fields.place ?? null,
-    wishItemId: wish.entityId,
-    date,
-    sortOrder: insertionKey(items.length ? sortKey(items.at(-1)!) : null),
-  })
-  toast.undoable('已安排到行程', () => {
-    void writeEntity(db, trip.id, 'itinerary_item', id, 'delete').catch((e) =>
-      toast.error(String(e)),
-    )
-  })
-}
+import { scheduleWish } from './schedule-wish'
 export function DateChooser({
   trip,
   onChoose,
@@ -137,11 +100,9 @@ function WishCard({
             <Link
               to={`/trips/${trip.id}?item=${scheduled[0].entityId}#item-${scheduled[0].entityId}`}
             >
-              已安排（
               {days.includes(String(scheduled[0].fields.date))
                 ? `第 ${days.indexOf(String(scheduled[0].fields.date)) + 1} 天`
                 : String(scheduled[0].fields.date)}
-              ）
             </Link>
           ) : (
             '未安排'
@@ -334,6 +295,7 @@ export function WishlistPanel({
   const [editor, setEditor] = useState<Entity | null | undefined>(undefined),
     [schedule, setSchedule] = useState<Entity | null>(null)
   const states = items.flatMap((i) => (i.view ? [i.view] : []))
+  if (wishes.loading || items.loading) return <LoadingList />
   const sorted = [...wishes].sort(
     (a, b) =>
       Number(scheduledItems(a.entityId, states).length > 0) -

@@ -1,4 +1,4 @@
-import { Toaster as Primitive, toast as baseToast } from 'sonner'
+import { Toaster as Primitive } from 'sonner'
 import { useEffect, useState } from 'react'
 export function Toaster() {
   const [overlay, setOverlay] = useState(false)
@@ -36,8 +36,3 @@ export function Toaster() {
     />
   )
 }
-export const toast = Object.assign(baseToast, {
-  undoable(message: string, onUndo: () => void) {
-    return baseToast(message, { action: { label: '撤销', onClick: onUndo } })
-  },
-})

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useEntities } from '@/data/hooks'
 import { writeEntity, type Database, type Pending } from '@/data/db'
 import { Button } from '@/ui/components/button'
-import { toast } from '@/ui/components/sonner'
+import { toast } from '@/ui/toast'
 export function PackingPollsRetry({
   db,
   retry,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import { useLiveQuery } from 'dexie-react-hooks'
 import type { components } from '@/api/schema'
 import { api } from '@/api/client'
@@ -13,7 +13,7 @@ import { Button } from '@/ui/components/button'
 import { Card } from '@/ui/components/card'
 import { Avatar } from '@/ui/components/avatar'
 import { ResponsiveOverlay } from '@/ui/responsive-overlay'
-import { toast } from '@/ui/components/sonner'
+import { toast } from '@/ui/toast'
 import { errorMessage } from './auth-utils'
 import { formatDateTime } from '@/domain/format'
 type TripInput = components['schemas']['TripBody']
@@ -160,6 +160,7 @@ export function Members() {
   }
   return (
     <main className="page stack">
+      <Link to={`/trips/${tripId}/more`}>← 返回更多</Link>
       <h1>成员</h1>
       {members.map((row) => {
         const member = row.view!.fields
@@ -373,6 +374,7 @@ export function TripSettings() {
   if (!trip) return <main className="page">正在读取行程…</main>
   return (
     <main className="page stack">
+      <Link to={`/trips/${tripId}/more`}>← 返回更多</Link>
       <h1>设置</h1>
       <TripForm
         key={trip.id}

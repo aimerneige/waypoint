@@ -13,6 +13,7 @@ import { Button } from '@/ui/components/button'
 import { Card } from '@/ui/components/card'
 import { errorMessage } from './auth-utils'
 import { PackingReminder } from './packing-reminder'
+import { LoadingList } from '@/ui/loading-list'
 export function MyTrips() {
   const user = useSession((s) => s.currentUser)
   const online = useOnline()
@@ -22,8 +23,13 @@ export function MyTrips() {
   const trips = useLiveQuery(
     () => database(user!.id).trips.where('access').equals('ok').toArray(),
     [user!.id],
-    [],
   )
+  if (!trips)
+    return (
+      <main className="page">
+        <LoadingList />
+      </main>
+    )
   return (
     <main className="page stack">
       <div>
@@ -55,8 +61,9 @@ export function MyTrips() {
             const { data } = await api.POST('/api/trips', { body: values })
             if (data) {
               await currentEngine()?.discover()
+              // 等懒加载路由提交后再关闭，避免弹层回退覆盖尚未完成的导航。
+              await navigate(`/trips/${data.id}`)
               setOpen(false)
-              navigate(`/trips/${data.id}`)
             }
           }}
         />
@@ -71,7 +78,11 @@ export function TripPlaceholder({ title }: { title: string }) {
       <h1>{title}</h1>
       <Card>
         <h2>为下一程做好准备</h2>
-        <p className="muted">{title}功能正在准备中，敬请期待。</p>
+        <p className="muted">
+          {title === '更多'
+            ? '凭证、投票与行程管理集中在这里。'
+            : `${title}功能正在准备中，敬请期待。`}
+        </p>
       </Card>
       {title === '更多' && (
         <Card>

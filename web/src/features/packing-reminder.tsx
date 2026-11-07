@@ -44,7 +44,7 @@ export function PackingReminder({ trip }: { trip: Trip }) {
   }, [message, key])
   if (!message || !displayed) return null
   return (
-    <div className="banner" role="status">
+    <div className="banner stack" role="status">
       <span>
         {trip.name} · {displayed}
       </span>

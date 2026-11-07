@@ -16,7 +16,7 @@ import { Alert } from '@/ui/components/alert'
 import { ResponsiveOverlay } from '@/ui/responsive-overlay'
 import { useOnline } from '@/ui/hooks'
 import { applyTheme, type Theme } from '@/ui/theme/tokens'
-import { toast } from '@/ui/components/sonner'
+import { toast } from '@/ui/toast'
 export function Account({
   onBeforeLogout,
 }: {

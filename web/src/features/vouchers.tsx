@@ -1,3 +1,4 @@
+import { LoadingList } from '@/ui/loading-list'
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -36,7 +37,7 @@ import { ListCard } from '@/ui/list-card'
 import { ResponsiveOverlay } from '@/ui/responsive-overlay'
 import { Fab } from '@/ui/shell'
 import { Button } from '@/ui/components/button'
-import { toast } from '@/ui/components/sonner'
+import { toast } from '@/ui/toast'
 import { VoucherViewer } from './voucher-viewer'
 import { HistoryList } from './itinerary'
 
@@ -403,11 +404,17 @@ export function Vouchers() {
       active = false
     }
   }, [user.id, revision, uploads])
+  if (vouchers.loading)
+    return (
+      <main className="page">
+        <LoadingList />
+      </main>
+    )
   return (
     <main className="page stack">
+      <Link to="../more">← 返回更多</Link>
       <div className="row">
         <h1>凭证</h1>
-        <Link to="../more">更多</Link>
       </div>
       <p role="status">离线占用空间：{fileSize(usage)}</p>
       {!vouchers.length && (

@@ -1,30 +1,16 @@
-import { useEffect, useState } from 'react'
-import {
-  createBrowserRouter,
-  Navigate,
-  Outlet,
-  useLocation,
-  Link,
-} from 'react-router'
+import { Suspense, useEffect, useState } from 'react'
+import { Skeleton } from './ui/components/skeleton'
+import { Navigate, Outlet, useLocation, Link } from 'react-router'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { bootstrapSession, useSession } from './platform/session'
-import { AppShell, TripLayout, useSyncStatus } from './ui/shell'
+import { useSyncStatus } from './ui/sync-status'
 import { overlayHistory } from './ui/overlay-history'
-import { Toaster, toast } from './ui/components/sonner'
+import { Toaster } from './ui/components/sonner'
+import { toast } from './ui/toast'
 import { Button } from './ui/components/button'
 import { applyTheme } from './ui/theme/tokens'
-import { AuthPage, VerifyEmail } from './features/auth'
-import { Account } from './features/account'
-import { MyTrips, TripPlaceholder, JoinTrip } from './features/trips'
-import { Members, TripSettings } from './features/trip-management'
 import { startSync } from './sync-runtime'
-import { Itinerary, TripHistory } from './features/itinerary'
-import { Wishlist } from './features/wishlist'
-import { Ledger } from './features/ledger'
-import { Packing } from './features/packing'
-import { Polls } from './features/polls'
-import { Vouchers } from './features/vouchers'
-function Root() {
+export function Root() {
   const status = useSession((s) => s.status)
   const upgrade = useSyncStatus((s) => s.upgrade)
   const location = useLocation()
@@ -101,12 +87,21 @@ function Root() {
           </Button>
         </div>
       )}
-      <Outlet />
+      <Suspense
+        fallback={
+          <main className="page stack" role="status" aria-label="正在加载页面">
+            <Skeleton className="h-12" />
+            <Skeleton className="h-32" />
+          </main>
+        }
+      >
+        <Outlet />
+      </Suspense>
       <Toaster />
     </>
   )
 }
-function Protected() {
+export function Protected() {
   const { currentUser, status } = useSession()
   const location = useLocation()
   if (currentUser) return <Outlet />
@@ -123,59 +118,3 @@ function Protected() {
     />
   )
 }
-export const router = createBrowserRouter([
-  {
-    element: <Root />,
-    children: [
-      ...(
-        ['login', 'register', 'forgot-password', 'reset-password'] as const
-      ).map((kind) => ({
-        path: `/${kind}`,
-        element: <AuthPage key={kind} kind={kind} />,
-      })),
-      { path: '/verify-email', element: <VerifyEmail /> },
-      { path: '/join/:token', element: <JoinTrip /> },
-      {
-        element: <Protected />,
-        children: [
-          {
-            element: <AppShell />,
-            children: [
-              { path: '/', element: <MyTrips /> },
-              { path: '/account', element: <Account /> },
-              {
-                path: '/trips/:tripId',
-                element: <TripLayout />,
-                children: [
-                  { index: true, element: <Itinerary /> },
-                  { path: 'wishes', element: <Wishlist /> },
-                  { path: 'history', element: <TripHistory /> },
-                  { path: 'ledger', element: <Ledger /> },
-                  {
-                    path: 'packing',
-                    element: <Packing />,
-                  },
-                  { path: 'more', element: <TripPlaceholder title="更多" /> },
-                  { path: 'members', element: <Members /> },
-                  { path: 'settings', element: <TripSettings /> },
-                  { path: 'polls', element: <Polls /> },
-                  { path: 'polls/:pollId', element: <Polls /> },
-                  { path: 'documents', element: <Vouchers /> },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        path: '*',
-        element: (
-          <main className="page">
-            <h1>页面不存在</h1>
-            <Link to="/">返回首页</Link>
-          </main>
-        ),
-      },
-    ],
-  },
-])

@@ -24,3 +24,5 @@ down:
 e2e:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile dev up -d --build --wait
 	cd web && npx playwright test
+e2e-ui:
+	cd web && npx playwright test --ui

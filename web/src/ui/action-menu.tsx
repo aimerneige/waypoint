@@ -3,7 +3,7 @@ import * as Dropdown from '@radix-ui/react-dropdown-menu'
 import { Ellipsis } from 'lucide-react'
 import { useMedia } from './hooks'
 import { ResponsiveOverlay } from './responsive-overlay'
-import { toast } from './components/sonner'
+import { toast } from '@/ui/toast'
 export type Action = {
   label: string
   onSelect: () => void | Promise<void>

@@ -1,4 +1,5 @@
 import type { State } from './ops'
+import { formatDateTime } from './format'
 export function isPollClosed(poll: State, now = new Date()) {
   return (
     !!poll.fields.closedAt ||
@@ -35,5 +36,5 @@ export function deadlineText(poll: State, now = new Date()) {
   const minutes = Math.ceil(
     (Date.parse(String(poll.fields.deadline)) - now.getTime()) / 60000,
   )
-  return `${new Date(String(poll.fields.deadline)).toLocaleString('zh-CN')} · 还剩${minutes > 1440 ? `${Math.ceil(minutes / 1440)} 天` : minutes > 60 ? `${Math.ceil(minutes / 60)} 小时` : `${minutes} 分钟`}`
+  return `${formatDateTime(String(poll.fields.deadline), now)} · 还剩${minutes > 1440 ? `${Math.ceil(minutes / 1440)} 天` : minutes > 60 ? `${Math.ceil(minutes / 60)} 小时` : `${minutes} 分钟`}`
 }

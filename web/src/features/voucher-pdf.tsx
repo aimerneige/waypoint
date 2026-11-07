@@ -5,6 +5,8 @@ import {
   type PDFDocumentProxy,
 } from 'pdfjs-dist'
 import worker from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
+import { Button } from '@/ui/components/button'
 GlobalWorkerOptions.workerSrc = worker
 
 function Page({
@@ -71,23 +73,40 @@ export default function VoucherPDF({ blob }: { blob: Blob }) {
   }, [blob])
   return (
     <div className="stack" data-testid="pdf-viewer">
-      <label>
-        PDF 缩放
-        <input
-          type="range"
-          min="0.3"
-          max="2"
-          step="0.1"
-          value={scale}
-          onChange={(e) => setScale(Number(e.target.value))}
-        />
-      </label>
+      <div className="row" aria-label="PDF 缩放">
+        <Button
+          variant="outline"
+          aria-label="缩小 PDF"
+          disabled={scale <= 0.3}
+          onClick={() => setScale(Math.max(0.3, scale - 0.1))}
+        >
+          −
+        </Button>
+        <span>{Math.round(scale * 100)}%</span>
+        <Button
+          variant="outline"
+          aria-label="放大 PDF"
+          disabled={scale >= 2}
+          onClick={() => setScale(Math.min(2, scale + 0.1))}
+        >
+          +
+        </Button>
+      </div>
       {error && <p role="alert">{error}</p>}
       {!document && !error && <p role="status">正在加载 PDF…</p>}
       <div className="voucher-pages">
         {document &&
           Array.from({ length: document.numPages }, (_, i) => (
-            <Page key={i} document={document} number={i + 1} scale={scale} />
+            <section key={i}>
+              <p>
+                第 {i + 1} / {document.numPages} 页
+              </p>
+              <TransformWrapper>
+                <TransformComponent>
+                  <Page document={document} number={i + 1} scale={scale} />
+                </TransformComponent>
+              </TransformWrapper>
+            </section>
           ))}
       </div>
     </div>

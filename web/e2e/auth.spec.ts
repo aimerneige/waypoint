@@ -103,6 +103,12 @@ test('主题', async ({ page }) => {
     expect(
       await page.locator('meta[name="theme-color"]').getAttribute('content'),
     ).toBe(theme === 'dark' ? '#0E141B' : '#F7FAFC')
+    await expect(
+      page.locator('meta[name="apple-mobile-web-app-status-bar-style"]'),
+    ).toHaveAttribute(
+      'content',
+      theme === 'dark' ? 'black-translucent' : 'default',
+    )
   }
   await page.getByLabel('主题', { exact: true }).selectOption('system')
   await page.emulateMedia({ colorScheme: 'dark' })
@@ -112,10 +118,10 @@ test('主题', async ({ page }) => {
 })
 test('离线外壳', async ({ page, context }) => {
   await register(page)
-  await page.goto('/account')
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready
   })
+  await page.goto('/account')
   await expect
     .poll(() => page.evaluate(() => !!navigator.serviceWorker.controller))
     .toBe(true)
@@ -150,6 +156,7 @@ test('邀请加入、成员同步、离线数据与移除', async ({
     locale: 'zh-CN',
     timezoneId: 'Asia/Shanghai',
     baseURL: info.project.use.baseURL ?? 'http://localhost:8088',
+    ignoreHTTPSErrors: true,
     viewport: info.project.use.viewport,
   })
   try {

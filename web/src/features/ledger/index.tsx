@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { LoadingList } from '@/ui/loading-list'
+import { useId, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Command } from 'cmdk'
@@ -18,7 +19,8 @@ import { wallet } from '@/domain/wallet'
 import { formatMoney, moneyInput, parseMoney } from '@/domain/money'
 import { splitEqual } from '@/domain/split'
 import { netBalances, settle } from '@/domain/settlement'
-import { todayInZone } from '@/domain/format'
+import { todayInZone, formatDate } from '@/domain/format'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import type {
   Exchange,
   Expense,
@@ -27,7 +29,7 @@ import type {
   Valuation,
 } from '@/domain/ledger-types'
 import { Button } from '@/ui/components/button'
-import { toast } from '@/ui/components/sonner'
+import { toast } from '@/ui/toast'
 import { ResponsiveOverlay } from '@/ui/responsive-overlay'
 import { ListCard } from '@/ui/list-card'
 import { ActionMenu } from '@/ui/action-menu'
@@ -125,6 +127,7 @@ function ExpenseEditor({
   retry?: Pending
 }) {
   const id = initial?.id ?? 'preview'
+  const errorId = useId()
   const [f, setF] = useState<Expense>(
     initial ?? {
       id,
@@ -246,40 +249,44 @@ function ExpenseEditor({
           }
         }}
       >
-        <label>
-          金额
-          <input
-            className="money-input"
-            inputMode="decimal"
-            required
-            value={amount}
-            disabled={locked}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-        </label>
-        {!locked && (
-          <CurrencyPicker
-            value={f.currency}
-            rates={rates}
-            onChange={(currency) =>
-              change({
-                currency,
-                method:
-                  currency === 'CNY'
-                    ? 'cny'
-                    : f.method === 'cny'
-                      ? 'card'
-                      : f.method,
-                rateSource:
-                  currency === 'CNY'
-                    ? 'default'
-                    : f.method === 'cash'
-                      ? 'wallet'
-                      : 'default',
-              })
-            }
-          />
-        )}
+        <div className="amount-currency">
+          <label>
+            金额
+            <input
+              className="money-input"
+              aria-invalid={!!error}
+              aria-describedby={error ? errorId : undefined}
+              inputMode="decimal"
+              required
+              value={amount}
+              disabled={locked}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          </label>
+          {!locked && (
+            <CurrencyPicker
+              value={f.currency}
+              rates={rates}
+              onChange={(currency) =>
+                change({
+                  currency,
+                  method:
+                    currency === 'CNY'
+                      ? 'cny'
+                      : f.method === 'cny'
+                        ? 'card'
+                        : f.method,
+                  rateSource:
+                    currency === 'CNY'
+                      ? 'default'
+                      : f.method === 'cash'
+                        ? 'wallet'
+                        : 'default',
+                })
+              }
+            />
+          )}
+        </div>
         <fieldset disabled={locked}>
           <legend>支付方式</legend>
           <div className="row">
@@ -493,7 +500,11 @@ function ExpenseEditor({
           {preview.insufficient && (
             <p className="error">钱包余额不足，仍可保存</p>
           )}
-          {error && <p>{error}</p>}
+          {error && (
+            <p id={errorId} role="alert">
+              {error}
+            </p>
+          )}
         </div>
         <Button loading={busy}>保存账目</Button>
       </form>
@@ -594,7 +605,22 @@ export function Ledger() {
     [status, setStatus] = useState(''),
     [cardNote, setCardNote] = useState(''),
     [date, setDate] = useState('')
-  if (!trip) return <main className="page">正在加载账本…</main>
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [visibleCount, setVisibleCount] = useState(50)
+  const [expanded, setExpanded] = useState<string[]>([])
+  if (
+    !trip ||
+    expenseRows.loading ||
+    exchangeRows.loading ||
+    memberRows.loading ||
+    transferRows.loading ||
+    rateRows.loading
+  )
+    return (
+      <main className="page">
+        <LoadingList />
+      </main>
+    )
   const remove = async (entity: string, id: string) => {
     await writeEntity(db, tripId, entity, id, 'delete')
     toast.undoable('已撤销', () => {
@@ -664,58 +690,112 @@ export function Ledger() {
               </div>
             ))}
           </div>
-          <div className="ledger-filters">
-            <label>
-              付款人
-              <select value={payer} onChange={(e) => setPayer(e.target.value)}>
-                <option value="">全部</option>
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              币种
-              <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-              >
-                <option value="">全部</option>
-                {[...new Set(expenses.map((e) => e.currency))].map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              方式
-              <select
-                value={method}
-                onChange={(e) => setMethod(e.target.value)}
-              >
-                <option value="">全部</option>
-                <option value="card">刷卡</option>
-                <option value="cash">现金</option>
-                <option value="cny">人民币</option>
-              </select>
-            </label>
-            <label>
-              状态
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="">全部</option>
-                {['估算', '已核实', '手动', '钱包成本', '缺少汇率'].map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-            </label>
+          <div className="row">
+            <Button variant="outline" onClick={() => setFiltersOpen(true)}>
+              筛选
+            </Button>
+            {[
+              [payer && name(payer), setPayer],
+              [currency, setCurrency],
+              [
+                method &&
+                  (
+                    { card: '刷卡', cash: '现金', cny: '人民币' } as Record<
+                      string,
+                      string
+                    >
+                  )[method],
+                setMethod,
+              ],
+              [status, setStatus],
+            ].map(([label, clear], i) =>
+              label ? (
+                <Button
+                  key={i}
+                  variant="outline"
+                  aria-label={`清除筛选 ${label}`}
+                  onClick={() => (clear as (v: string) => void)('')}
+                >
+                  {String(label)} ×
+                </Button>
+              ) : null,
+            )}
           </div>
-          {filtered.map((e, i) => (
+          <ResponsiveOverlay
+            open={filtersOpen}
+            onOpenChange={setFiltersOpen}
+            title="账目筛选"
+          >
+            <div className="ledger-filters">
+              <label>
+                付款人
+                <select
+                  aria-label="付款人"
+                  value={payer}
+                  onChange={(e) => setPayer(e.target.value)}
+                >
+                  <option value="">全部</option>
+                  {members.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                币种
+                <select
+                  aria-label="币种"
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                >
+                  <option value="">全部</option>
+                  {[...new Set(expenses.map((e) => e.currency))].map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                方式
+                <select
+                  aria-label="方式"
+                  value={method}
+                  onChange={(e) => setMethod(e.target.value)}
+                >
+                  <option value="">全部</option>
+                  <option value="card">刷卡</option>
+                  <option value="cash">现金</option>
+                  <option value="cny">人民币</option>
+                </select>
+              </label>
+              <label>
+                状态
+                <select
+                  aria-label="状态"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <option value="">全部</option>
+                  {['估算', '已核实', '手动', '钱包成本', '缺少汇率'].map(
+                    (s) => (
+                      <option key={s}>{s}</option>
+                    ),
+                  )}
+                </select>
+              </label>
+            </div>
+          </ResponsiveOverlay>
+          {filtered.slice(0, visibleCount).map((e, i) => (
             <div key={e.id}>
-              {(!i || filtered[i - 1].date !== e.date) && <h2>{e.date}</h2>}
+              {(!i || filtered[i - 1].date !== e.date) && (
+                <h2>
+                  {formatDate(e.date)}{' '}
+                  {new Intl.DateTimeFormat('zh-CN', {
+                    weekday: 'short',
+                    timeZone: 'UTC',
+                  }).format(new Date(`${e.date}T12:00:00Z`))}
+                </h2>
+              )}
               <article className="card ledger-card" data-testid="expense-card">
                 <ListCard
                   title={
@@ -723,7 +803,7 @@ export function Ledger() {
                       <strong>{e.title}</strong>
                     </button>
                   }
-                  status={values[e.id].status}
+                  status={e.method === 'cny' ? undefined : values[e.id].status}
                   menu={
                     <ActionMenu
                       label={`账目操作 ${e.title}`}
@@ -745,15 +825,38 @@ export function Ledger() {
               </article>
             </div>
           ))}
-          {!filtered.length && (
-            <p className="muted">暂无账目，记录旅途的第一笔支出。</p>
+          {filtered.length > visibleCount && (
+            <Button
+              variant="outline"
+              onClick={() => setVisibleCount(visibleCount + 50)}
+            >
+              显示更多账目（{visibleCount}/{filtered.length}）
+            </Button>
           )}
+          {!filtered.length &&
+            (expenses.length ? (
+              <p className="muted">
+                没有符合筛选条件的账目，清除筛选查看全部。
+              </p>
+            ) : (
+              <div className="stack">
+                <p className="muted">暂无账目，记录旅途的第一笔支出。</p>
+                <Button variant="outline" onClick={() => setEditor(null)}>
+                  记第一笔
+                </Button>
+              </div>
+            ))}
           <Fab aria-label="新增账目" onClick={() => setEditor(null)} />
         </>
       )}
       {tab === '钱包' && (
         <>
           <h2>我的钱包</h2>
+          {!wallets.some((w) => w.ownerUserId === user.id) && (
+            <p className="muted">
+              还没有外币钱包，新增换汇后可追踪余额和现金成本。
+            </p>
+          )}
           {wallets
             .filter((w) => w.ownerUserId === user.id)
             .map((w) => (
@@ -946,39 +1049,68 @@ export function Ledger() {
           {!suggestions.transfers.length && <p>已结清</p>}
           <h2>每人明细</h2>
           {members.map((m) => (
-            <details key={m.id} className="card ledger-card">
-              <summary>
-                {m.name} · 净额 {formatMoney(net[m.id] ?? 0n)}
-              </summary>
-              <p>
-                已付 {formatMoney(paid(m.id))} · 应摊 {formatMoney(share(m.id))}
-              </p>
-              {expenses
-                .filter(
-                  (e) =>
-                    e.payerUserId === m.id || e.split.members.includes(m.id),
-                )
-                .map((e) => (
-                  <p key={e.id}>
-                    {e.title}：
-                    {e.payerUserId === m.id
-                      ? `付款 ${values[e.id].amountCny === null ? '缺少汇率' : formatMoney(values[e.id].amountCny!)}`
-                      : ''}{' '}
-                    {e.split.members.includes(m.id) &&
-                    values[e.id].amountCny !== null
-                      ? `分摊 ${formatMoney(splitEqual(values[e.id].amountCny!, e.split.members)[m.id])}`
-                      : ''}
+            <article
+              key={m.id}
+              className="card ledger-card"
+              data-testid="settlement-member"
+            >
+              <ListCard
+                title={
+                  <Button
+                    variant="ghost"
+                    aria-expanded={expanded.includes(m.id)}
+                    onClick={() =>
+                      setExpanded(
+                        expanded.includes(m.id)
+                          ? expanded.filter((id) => id !== m.id)
+                          : [...expanded, m.id],
+                      )
+                    }
+                  >
+                    {m.name} · 净额 {formatMoney(net[m.id] ?? 0n)}
+                    {expanded.includes(m.id) ? (
+                      <ChevronDown />
+                    ) : (
+                      <ChevronRight />
+                    )}
+                  </Button>
+                }
+              />
+              {expanded.includes(m.id) && (
+                <div>
+                  <p>
+                    已付 {formatMoney(paid(m.id))} · 应摊{' '}
+                    {formatMoney(share(m.id))}
                   </p>
-                ))}
-              {transfers
-                .filter((t) => t.fromUserId === m.id || t.toUserId === m.id)
-                .map((t) => (
-                  <p key={t.id}>
-                    {t.fromUserId === m.id ? '已转出' : '已收到'}{' '}
-                    {formatMoney(BigInt(t.amountCny))}
-                  </p>
-                ))}
-            </details>
+                  {expenses
+                    .filter(
+                      (e) =>
+                        e.payerUserId === m.id ||
+                        e.split.members.includes(m.id),
+                    )
+                    .map((e) => (
+                      <p key={e.id}>
+                        {e.title}：
+                        {e.payerUserId === m.id
+                          ? `付款 ${values[e.id].amountCny === null ? '缺少汇率' : formatMoney(values[e.id].amountCny!)}`
+                          : ''}{' '}
+                        {e.split.members.includes(m.id) &&
+                        values[e.id].amountCny !== null
+                          ? `分摊 ${formatMoney(splitEqual(values[e.id].amountCny!, e.split.members)[m.id])}`
+                          : ''}
+                      </p>
+                    ))}
+                  {transfers
+                    .filter((t) => t.fromUserId === m.id || t.toUserId === m.id)
+                    .map((t) => (
+                      <p key={t.id}>
+                        {t.fromUserId === m.id ? '已转出' : '已收到'}{' '}
+                        {formatMoney(BigInt(t.amountCny))}
+                      </p>
+                    ))}
+                </div>
+              )}
+            </article>
           ))}
           <h2>已标记的转账</h2>
           {transfers.map((t) => (

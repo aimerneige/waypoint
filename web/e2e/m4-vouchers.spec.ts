@@ -44,6 +44,7 @@ test('M4 凭证共享、私有隔离、离线上传、缓存、HEIC 和查看器
   test.setTimeout(240000)
   const options = {
     baseURL: info.project.use.baseURL,
+    ignoreHTTPSErrors: true,
     viewport: { width: 375, height: 812 },
     isMobile: true,
     hasTouch: true,
@@ -125,7 +126,21 @@ test('M4 凭证共享、私有隔离、离线上传、缓存、HEIC 和查看器
       'true',
     )
     if (info.project.name === 'mobile') await shots(b, 'pdf')
-    await close(b)
+    const canvas = b.getByTestId('pdf-viewer').locator('canvas')
+    const width = await canvas.evaluate((el: HTMLCanvasElement) => el.width)
+    await b.getByRole('button', { name: '放大 PDF', exact: true }).click()
+    await expect
+      .poll(() => canvas.evaluate((el: HTMLCanvasElement) => el.width))
+      .toBeGreaterThan(width)
+    expect(
+      await b
+        .getByRole('dialog')
+        .evaluate(
+          (el) => Math.round(el.getBoundingClientRect().height) === innerHeight,
+        ),
+    ).toBe(true)
+    await b.goBack()
+    await expect(b.getByRole('dialog')).toHaveCount(0)
     if (info.project.name === 'mobile') await shots(b, 'itinerary')
     await b.getByRole('button').filter({ hasText: '东京集合' }).first().click()
     await expect(

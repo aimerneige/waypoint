@@ -100,6 +100,7 @@ test('M2 多币种、钱包、对账、三人结算、离线与汇率冲突', as
   test.setTimeout(300000)
   const options = {
     baseURL: info.project.use.baseURL,
+    ignoreHTTPSErrors: true,
     viewport: { width: 375, height: 812 },
     isMobile: true,
     hasTouch: true,
@@ -284,15 +285,28 @@ test('M2 多币种、钱包、对账、三人结算、离线与汇率冲突', as
       await a.getByText('账本 A · 净额', { exact: false }).click()
       await expect(a.getByText(/已付 ¥85.01/)).toBeVisible()
       if (info.project.name === 'mobile') await screenshots(a, 'settlement')
-      const before = await a.locator('summary').allTextContents()
+      const before = await a
+        .getByTestId('settlement-member')
+        .getByRole('button')
+        .allTextContents()
       await a.getByRole('button', { name: '标记已转账' }).first().click()
       await expect(a.getByRole('button', { name: '撤销转账' })).toHaveCount(1)
       await expect
-        .poll(() => a.locator('summary').allTextContents())
+        .poll(() =>
+          a
+            .getByTestId('settlement-member')
+            .getByRole('button')
+            .allTextContents(),
+        )
         .not.toEqual(before)
       await a.getByRole('button', { name: '撤销转账' }).click()
       await expect
-        .poll(() => a.locator('summary').allTextContents())
+        .poll(() =>
+          a
+            .getByTestId('settlement-member')
+            .getByRole('button')
+            .allTextContents(),
+        )
         .toEqual(before)
       await synced(a)
     })
@@ -310,8 +324,18 @@ test('M2 多币种、钱包、对账、三人结算、离线与汇率冲突', as
       await a.getByRole('button', { name: '结算', exact: true }).click()
       await b.getByRole('button', { name: '结算', exact: true }).click()
       await expect
-        .poll(() => b.locator('summary').allTextContents())
-        .toEqual(await a.locator('summary').allTextContents())
+        .poll(() =>
+          b
+            .getByTestId('settlement-member')
+            .getByRole('button')
+            .allTextContents(),
+        )
+        .toEqual(
+          await a
+            .getByTestId('settlement-member')
+            .getByRole('button')
+            .allTextContents(),
+        )
     })
     await test.step('离线同时改同一币种产生冲突提示', async () => {
       await synced(a)

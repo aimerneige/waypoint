@@ -1,7 +1,17 @@
 name: waypoint
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+x-security: &security
+  - no-new-privileges:true
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:17-alpine@sha256:3540c0362c809df084ffac0ae69fe794515f9de92692f02178bcdce0ef0302ac
+    mem_limit: 1g
+    logging: *logging
+    security_opt: *security
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -15,6 +25,13 @@ services:
       retries: 20
     restart: unless-stopped
   api:
+    image: waypoint-api:m5
+    mem_limit: 512m
+    logging: *logging
+    security_opt: *security
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
     build:
       context: .
       dockerfile: Dockerfile.api
@@ -48,12 +65,21 @@ services:
       retries: 20
     restart: unless-stopped
   web:
+    image: waypoint-web:m5
+    mem_limit: 256m
+    logging: *logging
+    security_opt: *security
+    read_only: true
+    tmpfs:
+      - /config:size=16m
+      - /tmp:size=16m
     build:
       context: .
       dockerfile: Dockerfile.web
     environment:
       WAYPOINT_DOMAIN: ${WAYPOINT_DOMAIN:-http://localhost}
       CADDY_MAX_BODY_SIZE: ${CADDY_MAX_BODY_SIZE:-33MB}
+      WAYPOINT_TLS: ${WAYPOINT_TLS:-}
     ports:
       - '${WEB_HTTP_PORT:-8088}:80'
       - '${WEB_HTTPS_PORT:-8443}:443'
@@ -80,7 +106,10 @@ services:
       retries: 20
     restart: unless-stopped
   backup:
-    image: postgres:17-alpine
+    image: postgres:17-alpine@sha256:3540c0362c809df084ffac0ae69fe794515f9de92692f02178bcdce0ef0302ac
+    mem_limit: 256m
+    logging: *logging
+    security_opt: *security
     entrypoint: [/bin/sh, /backup/loop.sh]
     environment:
       PGHOST: postgres
@@ -91,6 +120,7 @@ services:
       BACKUP_ON_START: ${BACKUP_ON_START:-0}
     volumes:
       - ./deploy/backup:/backup:ro
+      - ./scripts:/scripts:ro
       - uploads:/uploads:ro
       - backups:/backups
     depends_on:

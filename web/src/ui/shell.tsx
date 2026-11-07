@@ -1,7 +1,6 @@
-import { create } from 'zustand'
+import { useSyncStatus } from './sync-status'
 import { Link, NavLink, Outlet, useParams } from 'react-router'
-import { useEffect, useState } from 'react'
-import { RejectedChanges } from '@/features/itinerary'
+import { lazy, useEffect, useState } from 'react'
 import { PackingReminder } from '@/features/packing-reminder'
 import { ResponsiveOverlay } from './responsive-overlay'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -19,12 +18,9 @@ import {
 import { Button } from './components/button'
 import { useOnline } from './hooks'
 import { useSession } from '@/platform/session'
-export const useSyncStatus = create<{
-  state: 'synced' | 'syncing' | 'pending'
-  pending: number
-  rejected: number
-  upgrade: boolean
-}>(() => ({ state: 'synced', pending: 0, rejected: 0, upgrade: false }))
+const RejectedChanges = lazy(() =>
+  import('@/features/itinerary').then((m) => ({ default: m.RejectedChanges })),
+)
 export function SyncStatus() {
   const [open, setOpen] = useState(false)
   const online = useOnline()

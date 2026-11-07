@@ -52,4 +52,7 @@ export function applyTheme(theme: Theme) {
   document
     .querySelector('meta[name="theme-color"]')
     ?.setAttribute('content', themes[dark ? 'dark' : 'light'].background)
+  document
+    .querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
+    ?.setAttribute('content', dark ? 'black-translucent' : 'default')
 }

@@ -58,6 +58,19 @@ Cookie 默认 `COOKIE_SECURE=true`；localhost 下浏览器允许 Secure Cookie�
 
 ## 部署与备份
 
+生产配置、HTTPS 本地验收、升级回滚及监控见 [部署手册](docs/deploy.md)，安全审查见 [安全清单](docs/security-checklist.md)。
+
+一致备份与恢复演练（保留原数据库、uploads 和全部数据卷）：
+
+```sh
+docker compose stop api
+docker compose run --rm --no-deps --entrypoint /bin/sh backup /backup/run.sh
+sh scripts/restore-drill.sh
+docker compose start api
+```
+
+演练从最新完整备份恢复到唯一临时数据库和临时 uploads 目录，核对逐表行数与文件数量，退出时清理临时资源。旧备份若没有 rows.txt/files.txt，先按上述步骤制作新备份。正式恢复时停止 API，使用 pg_restore 恢复目标库、同时解压对应 uploads，核对 files 表引用及 SHA-256 后再启动；先在临时库演练，不要直接覆盖生产数据。
+
 ```sh
 cp .env.example .env
 docker compose up -d --build
@@ -89,10 +102,12 @@ cd web && npx playwright install chromium && cd ..
 docker compose --profile dev up -d --build --wait
 make e2e
 # 稳定性验收：每轮重置 API 内存中的注册限流，保留数据库
-for round in 1 2 3; do
+for round in 1 2 3 4 5; do
   docker compose restart api && make e2e || break
 done
 docker compose --profile dev down
 ```
 
 Playwright 包含手机和桌面项目；`web/e2e/m0-sync.spec.ts` 在两个独立手机浏览器上下文中覆盖离线合并、冲突恢复、拒绝回滚与重试、删除后编辑、成员移除和离线退出清理。所有同步等待使用状态或可见数据条件，无固定 sleep。测试需开发 Mailpit 可从主机访问；失败的截图和 trace 位于 `web/test-results/`。M0 手机亮暗截图自动输出至 `web/e2e/screenshots/m0-{itinerary,editor,conflicts,rejected,history}-{light,dark}.png`，不提交。不要同时运行会重建相同 Compose 服务的集成测试和 e2e。
+
+M5 覆盖矩阵见 [docs/e2e-coverage.md](docs/e2e-coverage.md)；新增尺寸、axe、长文本、安全区、焦点、跨模块离线旅途和千条本地数据切换用例。`make e2e-ui` 启动本地调试界面。行程和账目每次展示 50 条，可按“显示更多”继续浏览；统计和结算始终使用全部数据，行程深链接会额外显示目标条目。

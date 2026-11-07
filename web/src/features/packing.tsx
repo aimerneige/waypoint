@@ -1,3 +1,4 @@
+import { LoadingList } from '@/ui/loading-list'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -25,8 +26,9 @@ import { ResponsiveOverlay } from '@/ui/responsive-overlay'
 import { Fab } from '@/ui/shell'
 import { Button } from '@/ui/components/button'
 import { Avatar } from '@/ui/components/avatar'
-import { toast } from '@/ui/components/sonner'
+import { toast } from '@/ui/toast'
 import { useOnline } from '@/ui/hooks'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { HistoryList } from './itinerary'
 type Template = Pick<
   components['schemas']['PackingTemplate'],
@@ -217,27 +219,35 @@ function ApplyTemplate({
       }}
     >
       <p>为每件物品选择个人 / 公共，公共物品需要一位负责人。</p>
+      <div className="row">
+        {(['personal', 'shared'] as const).map((scope) => (
+          <Button
+            key={scope}
+            type="button"
+            variant="outline"
+            onClick={() => setItems(items.map((item) => ({ ...item, scope })))}
+          >
+            全部设为{scope === 'personal' ? '个人' : '公共'}
+          </Button>
+        ))}
+      </div>
       {items.map((item, i) => (
         <ListCard key={i} title={item.name}>
-          <label>
-            {item.name}类型
-            <select
-              aria-label={`${item.name}类型`}
-              value={item.scope}
-              onChange={(e) =>
-                setItems(
-                  items.map((v, n) =>
-                    n === i
-                      ? { ...v, scope: e.target.value as 'personal' | 'shared' }
-                      : v,
-                  ),
-                )
-              }
-            >
-              <option value="personal">个人物品</option>
-              <option value="shared">公共物品</option>
-            </select>
-          </label>
+          <div className="row" role="group" aria-label={`${item.name}类型`}>
+            {(['personal', 'shared'] as const).map((scope) => (
+              <Button
+                key={scope}
+                type="button"
+                aria-pressed={item.scope === scope}
+                variant={item.scope === scope ? 'default' : 'outline'}
+                onClick={() =>
+                  setItems(items.map((v, n) => (n === i ? { ...v, scope } : v)))
+                }
+              >
+                {scope === 'personal' ? '个人' : '公共'}
+              </Button>
+            ))}
+          </div>
           {item.scope === 'shared' && (
             <Assignee
               label={`${item.name}负责人`}
@@ -271,7 +281,8 @@ export function Packing() {
     [applying, setApplying] = useState<Template | null>(null),
     [saving, setSaving] = useState(false),
     [templateName, setTemplateName] = useState(''),
-    [history, setHistory] = useState<Entity | null>(null)
+    [history, setHistory] = useState<Entity | null>(null),
+    [collapsed, setCollapsed] = useState<string[]>([])
   const cached = useLiveQuery(() => db.meta.get('packing-templates'), [db])
   const templates = (cached?.value ?? []) as Template[]
   useEffect(() => {
@@ -284,7 +295,12 @@ export function Packing() {
         )
         .catch((e) => toast.error(String(e)))
   }, [online, db])
-  if (!trip) return <main className="page">正在打开清单…</main>
+  if (!trip || items.loading || members.loading)
+    return (
+      <main className="page">
+        <LoadingList />
+      </main>
+    )
   const personal = personalItems(
     items.flatMap((i) => (i.view ? [i.view] : [])),
     user.id,
@@ -311,6 +327,115 @@ export function Packing() {
       checked: (i: Entity) => !!i.view?.fields.packed,
     },
   ]
+  const renderRow = (item: Entity, checked: (i: Entity) => boolean) => {
+    const f = item.view!.fields,
+      isShared = f.scope === 'shared',
+      allowed =
+        !isShared || f.assigneeUserId === user.id || trip.role === 'owner'
+    return (
+      <article
+        key={item.entityId}
+        className="packing-row"
+        data-testid="packing-item"
+        onClick={(e) => {
+          if (
+            allowed &&
+            !(e.target as HTMLElement).closest('button, input, select, a')
+          )
+            e.currentTarget
+              .querySelector<HTMLButtonElement>('[role="checkbox"]')
+              ?.click()
+        }}
+      >
+        <ListCard
+          title={
+            <button
+              type="button"
+              className="packing-toggle row"
+              role="checkbox"
+              aria-label={String(f.name)}
+              aria-checked={checked(item)}
+              disabled={!allowed}
+              onClick={() => {
+                void writeEntity(
+                  db,
+                  tripId,
+                  'packing_item',
+                  item.entityId,
+                  'update',
+                  isShared
+                    ? { packed: !checked(item), packedBy: user.id }
+                    : { [`checked.${user.id}`]: !checked(item) },
+                ).catch((e) => toast.error(String(e)))
+              }}
+            >
+              <span aria-hidden="true" className="packing-check">
+                {checked(item) ? '✓' : ''}
+              </span>
+              {String(f.name)}
+              {!!f.ownerUserId && (
+                <span title="仅我需要带" aria-label="仅我需要带">
+                  ◉
+                </span>
+              )}
+            </button>
+          }
+          secondary={
+            isShared ? (
+              <MemberName
+                member={members.find((m) => m.entityId === f.assigneeUserId)}
+              />
+            ) : undefined
+          }
+          menu={
+            <ActionMenu
+              label={`${f.name}操作`}
+              actions={[
+                { label: '编辑物品', onSelect: () => setEditor(item) },
+                { label: '修改记录', onSelect: () => setHistory(item) },
+                {
+                  label: '删除物品',
+                  danger: true,
+                  onSelect: async () => {
+                    await writeEntity(
+                      db,
+                      tripId,
+                      'packing_item',
+                      item.entityId,
+                      'delete',
+                    )
+                    toast.undoable('物品已删除', () => {
+                      void writeEntity(
+                        db,
+                        tripId,
+                        'packing_item',
+                        item.entityId,
+                        'restore',
+                      ).catch((e) => toast.error(String(e)))
+                    })
+                  },
+                },
+              ]}
+            />
+          }
+        />
+      </article>
+    )
+  }
+  // 分类按首次出现顺序分组，组内保持 sortOrder，分类只作为组标题出现一次。
+  const renderGroups = (list: Entity[], checked: (i: Entity) => boolean) => {
+    const groups = new Map<string, Entity[]>()
+    for (const item of list) {
+      const category = String(item.view!.fields.category || '未分类')
+      groups.set(category, [...(groups.get(category) ?? []), item])
+    }
+    return [...groups].map(([category, group]) => (
+      <div className="packing-group" key={category}>
+        <h3 className="muted">{category}</h3>
+        {group.map((item) => renderRow(item, checked))}
+      </div>
+    ))
+  }
   return (
     <main className="page stack">
       <h1>行李清单</h1>
@@ -339,109 +464,35 @@ export function Packing() {
             />
           </label>
           {!rows.length && (
-            <p className="muted">还没有物品，新增一件或套用模板。</p>
+            <p className="muted">
+              {items.length
+                ? `暂无${title}，点右下角按钮新增。`
+                : '还没有物品，新增一件或套用模板，出发前逐件勾选。'}
+            </p>
           )}
-          {rows.map((item) => {
-            const f = item.view!.fields,
-              isShared = f.scope === 'shared',
-              allowed =
-                !isShared ||
-                f.assigneeUserId === user.id ||
-                trip.role === 'owner'
-            return (
-              <article
-                key={item.entityId}
-                data-testid="packing-item"
-                onClick={(e) => {
-                  if (
-                    allowed &&
-                    !(e.target as HTMLElement).closest(
-                      'button, input, select, a',
-                    )
-                  )
-                    e.currentTarget
-                      .querySelector<HTMLButtonElement>('[role="checkbox"]')
-                      ?.click()
-                }}
-              >
-                <ListCard
-                  title={
-                    <button
-                      type="button"
-                      className="packing-toggle row"
-                      role="checkbox"
-                      aria-label={String(f.name)}
-                      aria-checked={checked(item)}
-                      disabled={!allowed}
-                      onClick={() => {
-                        void writeEntity(
-                          db,
-                          tripId,
-                          'packing_item',
-                          item.entityId,
-                          'update',
-                          isShared
-                            ? { packed: !checked(item), packedBy: user.id }
-                            : { [`checked.${user.id}`]: !checked(item) },
-                        ).catch((e) => toast.error(String(e)))
-                      }}
-                    >
-                      <span aria-hidden="true">
-                        {checked(item) ? '☑' : '☐'}
-                      </span>
-                      {String(f.name)}
-                    </button>
-                  }
-                  secondary={
-                    isShared ? (
-                      <MemberName
-                        member={members.find(
-                          (m) => m.entityId === f.assigneeUserId,
-                        )}
-                      />
-                    ) : f.ownerUserId ? (
-                      '仅我需要带'
-                    ) : (
-                      '每人一份'
-                    )
-                  }
-                  description={String(f.category ?? '')}
-                  status={checked(item) ? '已装' : '待装'}
-                  menu={
-                    <ActionMenu
-                      label={`${f.name}操作`}
-                      actions={[
-                        { label: '编辑物品', onSelect: () => setEditor(item) },
-                        { label: '修改记录', onSelect: () => setHistory(item) },
-                        {
-                          label: '删除物品',
-                          danger: true,
-                          onSelect: async () => {
-                            await writeEntity(
-                              db,
-                              tripId,
-                              'packing_item',
-                              item.entityId,
-                              'delete',
-                            )
-                            toast.undoable('物品已删除', () => {
-                              void writeEntity(
-                                db,
-                                tripId,
-                                'packing_item',
-                                item.entityId,
-                                'restore',
-                              ).catch((e) => toast.error(String(e)))
-                            })
-                          },
-                        },
-                      ]}
-                    />
-                  }
-                />
-              </article>
-            )
-          })}
+          {renderGroups(
+            rows.filter((r) => !checked(r)),
+            checked,
+          )}
+          {rows.some(checked) && (
+            <Button
+              variant="ghost"
+              className="packed-toggle"
+              aria-expanded={!collapsed.includes(title)}
+              onClick={() =>
+                setCollapsed(
+                  collapsed.includes(title)
+                    ? collapsed.filter((t) => t !== title)
+                    : [...collapsed, title],
+                )
+              }
+            >
+              {collapsed.includes(title) ? <ChevronRight /> : <ChevronDown />}
+              已装（{rows.filter(checked).length}）
+            </Button>
+          )}
+          {!collapsed.includes(title) &&
+            renderGroups(rows.filter(checked), checked)}
         </section>
       ))}
       <Fab aria-label="新增物品" onClick={() => setEditor(null)} />

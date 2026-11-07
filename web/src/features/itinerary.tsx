@@ -1,3 +1,4 @@
+import { LoadingList } from '@/ui/loading-list'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { Bell, GripVertical } from 'lucide-react'
@@ -47,16 +48,12 @@ import {
   sortKey,
   timeLabel,
 } from '@/domain/itinerary'
-import {
-  DateChooser,
-  WishEditor,
-  WishlistPanel,
-  scheduleWish,
-} from './wishlist'
+import { DateChooser, WishEditor, WishlistPanel } from './wishlist'
+import { scheduleWish } from './schedule-wish'
 import { ResponsiveOverlay } from '@/ui/responsive-overlay'
 import { Button } from '@/ui/components/button'
 import { Card } from '@/ui/components/card'
-import { toast } from '@/ui/components/sonner'
+import { toast } from '@/ui/toast'
 import { Fab } from '@/ui/shell'
 import type { Op } from '@/domain/ops'
 import { formatMoney } from '@/domain/money'
@@ -426,6 +423,7 @@ export function Itinerary() {
     }),
   )
   const [moving, setMoving] = useState<Entity | null>(null)
+  const [visibleCount, setVisibleCount] = useState(50)
   const days = trip ? tripDays(trip.startDate, trip.endDate) : []
   const today = trip ? todayInZone(trip.timezone) : ''
   const scrolled = useRef('')
@@ -520,6 +518,12 @@ export function Itinerary() {
     }
   }
   const groups = [...days, 'outside']
+  if (items.loading || wishes.loading)
+    return (
+      <main className="page">
+        <LoadingList />
+      </main>
+    )
   return (
     <main className="page stack">
       <div className="row justify-between">
@@ -566,56 +570,70 @@ export function Itinerary() {
               >
                 <SortableContext items={sorted(day).map((i) => i.entityId)}>
                   {trip &&
-                    sorted(day).map((row, i, rows) => (
-                      <ItineraryCard
-                        key={row.entityId}
-                        row={row}
-                        trip={trip!}
-                        desktop={desktop}
-                        onEdit={() =>
-                          setEditor({
-                            id: row.entityId,
-                            fields: row.view!.fields,
-                            kind: 'update',
-                          })
-                        }
-                        onMove={() => setMoving(row)}
-                        onReorder={(direction) => {
-                          void reorder(row, direction).catch((e) =>
-                            toast.error(String(e)),
-                          )
-                        }}
-                        canUp={i > 0}
-                        canDown={
-                          i <
-                          rows.filter((r) => !r.view!.fields.startTime).length -
-                            1
-                        }
-                        onReturn={async () => {
-                          try {
-                            await writeEntity(
-                              db,
-                              tripId,
-                              'itinerary_item',
-                              row.entityId,
-                              'delete',
+                    sorted(day)
+                      .map((row, i, rows) => (
+                        <ItineraryCard
+                          key={row.entityId}
+                          row={row}
+                          trip={trip!}
+                          desktop={desktop}
+                          onEdit={() =>
+                            setEditor({
+                              id: row.entityId,
+                              fields: row.view!.fields,
+                              kind: 'update',
+                            })
+                          }
+                          onMove={() => setMoving(row)}
+                          onReorder={(direction) => {
+                            void reorder(row, direction).catch((e) =>
+                              toast.error(String(e)),
                             )
-                            toast.undoable('已移回心愿池', () => {
-                              void writeEntity(
+                          }}
+                          canUp={i > 0}
+                          canDown={
+                            i <
+                            rows.filter((r) => !r.view!.fields.startTime)
+                              .length -
+                              1
+                          }
+                          onReturn={async () => {
+                            try {
+                              await writeEntity(
                                 db,
                                 tripId,
                                 'itinerary_item',
                                 row.entityId,
-                                'restore',
-                              ).catch((e) => toast.error(String(e)))
-                            })
-                          } catch (e) {
-                            toast.error(String(e))
-                          }
-                        }}
-                      />
-                    ))}
+                                'delete',
+                              )
+                              toast.undoable('已移回心愿池', () => {
+                                void writeEntity(
+                                  db,
+                                  tripId,
+                                  'itinerary_item',
+                                  row.entityId,
+                                  'restore',
+                                ).catch((e) => toast.error(String(e)))
+                              })
+                            } catch (e) {
+                              toast.error(String(e))
+                            }
+                          }}
+                        />
+                      ))
+                      .filter(
+                        (row, i) =>
+                          i < visibleCount || row.key === params.get('item'),
+                      )}
                 </SortableContext>
+                {sorted(day).length > visibleCount && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setVisibleCount(visibleCount + 50)}
+                  >
+                    显示更多行程（{visibleCount}/{sorted(day).length}）
+                  </Button>
+                )}
                 {!sorted(day).length && day !== 'outside' && (
                   <p className="text-muted-foreground">这一天还没有安排</p>
                 )}
@@ -875,6 +893,11 @@ function NoticeList({ db, notices }: { db: Database; notices: Notice[] }) {
     )
   return (
     <div className="stack">
+      {!notices.some((n) => !n.dismissed) && (
+        <p className="muted">
+          暂无提示，修改冲突或条目删除后会在这里说明。关闭面板继续安排行程。
+        </p>
+      )}
       {notices
         .filter((n) => !n.dismissed)
         .map((n) => (
@@ -1144,7 +1167,7 @@ export function HistoryList({
   const [busy, setBusy] = useState(false)
   const [end, setEnd] = useState(false)
   const online = useOnline()
-  const rows = useLiveQuery(
+  const loadedRows = useLiveQuery(
     async () =>
       (await db.ops.where('tripId').equals(tripId).toArray())
         .filter(
@@ -1153,8 +1176,8 @@ export function HistoryList({
         )
         .sort((a, b) => b.serverSeq - a.serverSeq),
     [db, tripId, entityId, entity],
-    [],
   )
+  const rows = loadedRows ?? []
   const members = useEntities(db, tripId, 'member')
   const states = useLiveQuery(
     () => db.entities.where('tripId').equals(tripId).toArray(),
@@ -1188,8 +1211,14 @@ export function HistoryList({
   }
   const name = (id: string) =>
     String(members.find((m) => m.entityId === id)?.view?.fields.nickname ?? id)
+  if (!loadedRows) return <LoadingList />
   return (
     <div className="stack">
+      {!rows.length && (
+        <p className="muted">
+          暂无本地修改记录，可加载更早记录；新增或修改行程后也会显示在这里。
+        </p>
+      )}
       {rows.slice(0, limit).map((op) => (
         <Card key={op.serverSeq}>
           <p>
@@ -1263,6 +1292,7 @@ export function TripHistory() {
   const { db, tripId } = useTripData()
   return (
     <main className="page stack">
+      <Link to={`/trips/${tripId}/more`}>← 返回更多</Link>
       <h1>修改记录</h1>
       <HistoryList db={db} tripId={tripId} />
     </main>

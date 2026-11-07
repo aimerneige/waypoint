@@ -1,0 +1,9 @@
+services:
+  web:
+    environment:
+      WAYPOINT_DOMAIN: localhost
+      WAYPOINT_TLS: tls internal
+  api:
+    environment:
+      PUBLIC_BASE_URL: https://localhost:8443
+      COOKIE_SECURE: 'true'

@@ -9,7 +9,7 @@ import { loginSession, useSession, saveUser } from '@/platform/session'
 import { Button } from '@/ui/components/button'
 import { Form, FormField } from '@/ui/components/form'
 import { useOnline } from '@/ui/hooks'
-import { toast } from '@/ui/components/sonner'
+import { toast } from '@/ui/toast'
 import { email, password, nickname, safeNext, errorMessage } from './auth-utils'
 type Kind = 'login' | 'register' | 'forgot-password' | 'reset-password'
 const titles = {

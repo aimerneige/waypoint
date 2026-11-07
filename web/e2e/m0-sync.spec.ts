@@ -73,6 +73,7 @@ test('M0 双用户离线、冲突、拒绝、删除、移除与退出清理', as
     locale: 'zh-CN',
     timezoneId: 'Asia/Shanghai',
     baseURL: info.project.use.baseURL,
+    ignoreHTTPSErrors: true,
     viewport: { width: 375, height: 812 },
     isMobile: true,
     hasTouch: true,

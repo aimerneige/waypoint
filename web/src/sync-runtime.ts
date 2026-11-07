@@ -1,8 +1,8 @@
 import { liveQuery } from 'dexie'
 import { database, localWrites } from '@/data/db'
 import { useSession } from '@/platform/session'
-import { useSyncStatus } from '@/ui/shell'
-import { toast } from '@/ui/components/sonner'
+import { useSyncStatus } from '@/ui/sync-status'
+import { toast } from '@/ui/toast'
 import { SyncEngine } from './sync/engine'
 let active: SyncEngine | undefined
 let cleanup: (() => void) | undefined

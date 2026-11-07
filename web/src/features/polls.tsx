@@ -1,3 +1,4 @@
+import { LoadingList } from '@/ui/loading-list'
 import { useEffect, useState } from 'react'
 import { generateKeyBetween } from 'fractional-indexing'
 import { Link, useParams } from 'react-router'
@@ -12,9 +13,9 @@ import { ListCard } from '@/ui/list-card'
 import { ResponsiveOverlay } from '@/ui/responsive-overlay'
 import { Fab } from '@/ui/shell'
 import { Button } from '@/ui/components/button'
-import { toast } from '@/ui/components/sonner'
+import { Avatar } from '@/ui/components/avatar'
+import { toast } from '@/ui/toast'
 import { useOnline } from '@/ui/hooks'
-import { MemberName } from './packing'
 import { HistoryList } from './itinerary'
 function localTime(value: unknown) {
   if (!value) return ''
@@ -231,12 +232,18 @@ export function Polls() {
       toast.error(String(e))
     }
   }
+  if (!trip || polls.loading || options.loading || members.loading)
+    return (
+      <main className="page">
+        <LoadingList />
+      </main>
+    )
   const tally = selected ? pollCounts(selected.view!, states) : null
   const closed = selected ? isPollClosed(selected.view!, now) : false
   const chosen = (selected?.view?.fields[`vote.${user.id}`] ?? []) as string[]
   return (
     <main className="page stack">
-      <Link to={`/trips/${tripId}/more`}>返回更多</Link>
+      <Link to={`/trips/${tripId}/more`}>← 返回更多</Link>
       <h1>{pollId ? '投票详情' : '投票'}</h1>
       {pollId ? (
         selected ? (
@@ -323,12 +330,22 @@ export function Polls() {
                   max={tally!.total || 1}
                 />
                 <div className="row voters">
-                  {users.map((id) => (
-                    <MemberName
-                      key={id}
-                      member={members.find((m) => m.entityId === id)}
-                    />
-                  ))}
+                  {users.slice(0, 5).map((id) => {
+                    const member = members.find((m) => m.entityId === id)
+                    const name = String(
+                      member?.view?.fields.nickname ?? '已退出成员',
+                    )
+                    return (
+                      <span key={id} title={name} aria-label={name}>
+                        <Avatar
+                          name={name}
+                          src={member?.view?.fields.avatarUrl as string | null}
+                        />
+                        <span className="sr-only">{name}</span>
+                      </span>
+                    )
+                  })}
+                  {users.length > 5 && <span>+{users.length - 5}</span>}
                 </div>
               </ListCard>
             ))}
@@ -389,7 +406,12 @@ export function Polls() {
             </section>
           ))}
           {!polls.length && (
-            <p className="muted">一起决定旅途中的小事，发起第一个投票。</p>
+            <div className="stack">
+              <p className="muted">一起决定旅途中的小事，发起第一个投票。</p>
+              <Button variant="outline" onClick={() => setEditor(null)}>
+                发起第一个投票
+              </Button>
+            </div>
           )}
           <Fab aria-label="新建投票" onClick={() => setEditor(null)} />
         </>

@@ -52,6 +52,7 @@ export default defineConfig({
         ],
       },
       workbox: {
+        clientsClaim: true,
         globPatterns: ['**/*.{js,mjs,css,html,svg,png,woff2}'],
         navigateFallbackDenylist: [/^\/api\//],
       },

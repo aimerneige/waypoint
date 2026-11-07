@@ -7,7 +7,7 @@ import { share } from '@/platform/share'
 import { formatDate } from '@/domain/format'
 import { ResponsiveOverlay } from '@/ui/responsive-overlay'
 import { Button } from '@/ui/components/button'
-import { toast } from '@/ui/components/sonner'
+import { toast } from '@/ui/toast'
 const PDF = lazy(() => import('./voucher-pdf'))
 
 export function VoucherViewer({
@@ -59,24 +59,9 @@ export function VoucherViewer({
       }}
       title={String(f?.title ?? '查看凭证')}
       fullHeight
-    >
-      {error && <p role="alert">{error}</p>}
-      {!file && !error && <p role="status">正在打开凭证…</p>}
-      {file && (
-        <>
-          {f?.mime === 'application/pdf' ? (
-            <Suspense fallback={<p>正在加载 PDF…</p>}>
-              <PDF blob={file.blob} />
-            </Suspense>
-          ) : (
-            <div className="voucher-image" data-testid="image-viewer">
-              <TransformWrapper>
-                <TransformComponent>
-                  <img src={file.url} alt={String(f?.title)} />
-                </TransformComponent>
-              </TransformWrapper>
-            </div>
-          )}
+      fullscreen
+      headerActions={
+        file && (
           <Button
             variant="outline"
             onClick={() => {
@@ -99,6 +84,26 @@ export function VoucherViewer({
           >
             分享/保存
           </Button>
+        )
+      }
+    >
+      {error && <p role="alert">{error}</p>}
+      {!file && !error && <p role="status">正在打开凭证…</p>}
+      {file && (
+        <>
+          {f?.mime === 'application/pdf' ? (
+            <Suspense fallback={<p>正在加载 PDF…</p>}>
+              <PDF blob={file.blob} />
+            </Suspense>
+          ) : (
+            <div className="voucher-image" data-testid="image-viewer">
+              <TransformWrapper>
+                <TransformComponent>
+                  <img src={file.url} alt={String(f?.title)} />
+                </TransformComponent>
+              </TransformWrapper>
+            </div>
+          )}
         </>
       )}
       {!!f?.note && <p>{String(f.note)}</p>}

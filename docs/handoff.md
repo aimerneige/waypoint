@@ -11,7 +11,12 @@
   - [x] M0.4 前端 UI 基础 + 账号页面 + Playwright（主色在此定稿 → D13）
   - [x] M0.5 前端本地库 + 同步层 + 行程/成员/邀请页面
   - [x] M0.6 ItineraryItem 列表 + 冲突/拒绝/修改记录界面 + 退出清理 + M0 端到端验收
-- **M0 已完成（2026-11-07）**，**M1–M4 已完成**；M5 进行中。
+- **M0–M5 全部完成（2026-11-07）**。M6 不做。部署见 `docs/deploy.md`，安全清单 `docs/security-checklist.md`，e2e 覆盖 `docs/e2e-coverage.md`。
+- **上线阻塞（需用户提供）**：公网域名与 DNS、部署服务器、SMTP 账号（含 SPF/DKIM），然后按 docs/deploy.md 配置 `.env`。
+- **后续改进（非阻塞）**：
+  - CSP 目前含 `script-src unsafe-eval`（heic2any 需要）：改用 libheif-js（WASM）后可收紧为 `wasm-unsafe-eval`。
+  - 凭证全屏查看层仍露出应用顶栏，应覆盖整个视口；PDF 默认缩放 50% 偏小，应按宽度自适应。
+  - worker 磁盘余量约 21G（Docker 构建缓存约 288G，属共用守护进程，清理需用户决定）。
 - 验收流程：读 codex 报告 → 自己在 worker 上重跑 lint/test/`make test-integration`/compose 冒烟 → 审关键代码 → 提交。
 
 ## 环境注意

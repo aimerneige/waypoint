@@ -58,6 +58,7 @@ test('M1 心愿安排、撤销、历史、离线、排序、并发与桌面拖�
     locale: 'zh-CN',
     timezoneId: 'Asia/Shanghai',
     baseURL: info.project.use.baseURL,
+    ignoreHTTPSErrors: true,
     viewport: info.project.use.viewport,
     isMobile: info.project.use.isMobile,
     hasTouch: info.project.use.hasTouch,
@@ -121,7 +122,9 @@ test('M1 心愿安排、撤销、历史、离线、排序、并发与桌面拖�
       await card(a, '美术馆').getByRole('button', { name: '安排到…' }).click()
       if (info.project.name === 'mobile') await screenshot(a, 'schedule')
       await a.getByRole('button', { name: /第 2 天 ·/ }).click()
-      await expect(card(a, '美术馆')).toContainText('已安排（第 2 天）')
+      await expect(
+        card(a, '美术馆').getByRole('link', { name: '第 2 天', exact: true }),
+      ).toBeVisible()
       await expect(b.locator('[data-day="2026-11-11"]')).toContainText('美术馆')
       await a.getByRole('button', { name: '撤销', exact: true }).click()
       await expect(card(a, '美术馆')).toContainText('未安排')
@@ -224,7 +227,9 @@ test('M1 心愿安排、撤销、历史、离线、排序、并发与桌面拖�
       await synced(b)
       await expect(card(a, '并发心愿')).toContainText('已安排 2 次')
       await expect(card(b, '并发心愿')).toContainText('已安排 2 次')
-      await expect(card(a, '并发心愿')).toContainText('已安排（第 1 天）')
+      await expect(
+        card(a, '并发心愿').getByRole('link', { name: '第 1 天', exact: true }),
+      ).toBeVisible()
       await a.getByRole('link', { name: '返回行程' }).click()
       await b.getByRole('link', { name: '返回行程' }).click()
       await expect(item(a, '并发心愿')).toHaveCount(2)

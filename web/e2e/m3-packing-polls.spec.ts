@@ -44,6 +44,7 @@ test('M3 模板、独立勾选、提醒、实名投票与截止回滚', async ({
   test.setTimeout(240000)
   const opts = {
     baseURL: info.project.use.baseURL,
+    ignoreHTTPSErrors: true,
     viewport: { width: 375, height: 812 },
     isMobile: true,
     hasTouch: true,
@@ -115,7 +116,10 @@ test('M3 模板、独立勾选、提醒、实名投票与截止回滚', async ({
     await test.step('模板套用与独立勾选', async () => {
       await a.getByRole('button', { name: '套用模板', exact: true }).click()
       await a.getByRole('button', { name: '证件类', exact: true }).click()
-      await a.getByLabel('护照类型', { exact: true }).selectOption('shared')
+      await a
+        .getByRole('group', { name: '护照类型', exact: true })
+        .getByRole('button', { name: '公共', exact: true })
+        .click()
       await a
         .getByLabel('护照负责人', { exact: true })
         .selectOption({ label: '清单 B' })
