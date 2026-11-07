@@ -171,7 +171,7 @@ export function Account({
       </ResponsiveOverlay>
       <Button
         variant="outline"
-        disabled={!online || pending === undefined}
+        disabled={pending === undefined}
         loading={busy}
         onClick={() => {
           if (pending) setConfirmLogout(true)
@@ -184,7 +184,7 @@ export function Account({
         open={confirmLogout}
         onOpenChange={setConfirmLogout}
         title="退出登录"
-        description={`还有 ${pending} 条未同步修改，退出将清空本地数据。`}
+        description={`有 ${pending} 条修改尚未同步，退出将丢失`}
       >
         <Button loading={busy} onClick={() => void logout()}>
           确认退出登录

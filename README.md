@@ -1,6 +1,6 @@
 # Waypoint
 
-结伴旅行应用。当前已实现后端账号与鉴权、健康检查、数据库迁移与生成链路；前端仍为骨架页面，尚无行程或同步业务。
+结伴旅行应用。已实现账号、行程与成员管理、离线行程条目、按字段同步、冲突恢复、未生效修改重试及本地修改记录。
 
 ## 环境与目录
 
@@ -78,4 +78,17 @@ docker compose down
 
 MAX_UPLOAD_MB 默认 32；CADDY_MAX_BODY_SIZE 默认 33MB（请求封装余量），调整时同步修改。CORS_ALLOWED_ORIGINS 只预留配置，尚未启用跨域行为。PWA 仅预缓存应用外壳，不缓存 API；更新策略为 prompt，页面提示后由用户点击刷新。字体与图标均随应用打包，不访问外部 CDN。
 
-后续任务实现账号前端、平台能力、同步协议、持久存储申请与响应式弹层。
+## 浏览器端到端验收
+
+```sh
+cd web && npx playwright install chromium && cd ..
+docker compose --profile dev up -d --build --wait
+make e2e
+# 稳定性验收：每轮重置 API 内存中的注册限流，保留数据库
+for round in 1 2 3; do
+  docker compose restart api && make e2e || break
+done
+docker compose --profile dev down
+```
+
+Playwright 包含手机和桌面项目；`web/e2e/m0-sync.spec.ts` 在两个独立手机浏览器上下文中覆盖离线合并、冲突恢复、拒绝回滚与重试、删除后编辑、成员移除和离线退出清理。所有同步等待使用状态或可见数据条件，无固定 sleep。测试需开发 Mailpit 可从主机访问；失败的截图和 trace 位于 `web/test-results/`。M0 手机亮暗截图自动输出至 `web/e2e/screenshots/m0-{itinerary,editor,conflicts,rejected,history}-{light,dark}.png`，不提交。不要同时运行会重建相同 Compose 服务的集成测试和 e2e。

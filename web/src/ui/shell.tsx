@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { Link, NavLink, Outlet, useParams } from 'react-router'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { RejectedChanges } from '@/features/itinerary'
+import { ResponsiveOverlay } from './responsive-overlay'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { database } from '@/data/db'
 import { subscribeTrip } from '@/sync-runtime'
@@ -23,6 +25,7 @@ export const useSyncStatus = create<{
   upgrade: boolean
 }>(() => ({ state: 'synced', pending: 0, rejected: 0, upgrade: false }))
 export function SyncStatus() {
+  const [open, setOpen] = useState(false)
   const online = useOnline()
   const { state, pending, rejected, upgrade } = useSyncStatus()
   const expired = useSession((s) => s.status === 'expired')
@@ -30,18 +33,34 @@ export function SyncStatus() {
     ? '需要更新应用'
     : expired
       ? '登录已失效'
-      : rejected > 0 || state === 'pending'
-        ? '有修改未生效'
-        : !online
-          ? `离线（${pending} 条待同步）`
+      : !online
+        ? `离线（${pending} 条待同步）`
+        : rejected > 0 || state === 'pending'
+          ? '有修改未生效'
           : state === 'syncing' || pending > 0
             ? '同步中'
             : '已同步'
   return (
-    <span role="status" className="row muted">
-      <CloudCheck size={16} />
-      {text}
-    </span>
+    <>
+      <button
+        type="button"
+        role="status"
+        className="row muted"
+        onClick={() => {
+          if (rejected) setOpen(true)
+        }}
+      >
+        <CloudCheck size={16} />
+        {text}
+      </button>
+      <ResponsiveOverlay
+        open={open}
+        onOpenChange={setOpen}
+        title="未生效的修改"
+      >
+        <RejectedChanges />
+      </ResponsiveOverlay>
+    </>
   )
 }
 export function AppShell() {
@@ -72,12 +91,11 @@ export function TripLayout() {
   const { tripId = '' } = useParams()
   const user = useSession((s) => s.currentUser)!
   const status = useSession((s) => s.status)
-  const online = useOnline()
   const trip = useLiveQuery(
     () => database(user.id).trips.get(tripId),
     [user.id, tripId],
   )
-  useEffect(() => subscribeTrip(tripId), [tripId, status, online])
+  useEffect(() => subscribeTrip(tripId), [tripId, status])
   return (
     <>
       <nav aria-label="行程导航" className="trip-nav">
@@ -100,7 +118,6 @@ export function TripLayout() {
         <div className="page row">
           <Link to="/">我的行程</Link>
           <strong>{trip?.name}</strong>
-          <SyncStatus />
         </div>
         {trip && trip.access !== 'ok' ? (
           <main className="page">

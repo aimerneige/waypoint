@@ -14,6 +14,12 @@ export function startSync() {
     cleanup?.()
     cleanup = undefined
     active = undefined
+    useSyncStatus.setState({
+      state: 'synced',
+      pending: 0,
+      rejected: 0,
+      upgrade: false,
+    })
     const { currentUser, status } = useSession.getState()
     if (!currentUser || status !== 'authenticated') return
     const db = database(currentUser.id)
@@ -33,9 +39,14 @@ export function startSync() {
         void engine.discover()
     }
     let debounce: ReturnType<typeof setTimeout>
-    const write = () => {
+    const dirty = new Set<string>()
+    const write = (event: Event) => {
+      dirty.add((event as CustomEvent<{ tripId: string }>).detail.tripId)
       clearTimeout(debounce)
-      debounce = setTimeout(refresh, 300)
+      debounce = setTimeout(() => {
+        if (navigator.onLine) for (const id of dirty) void engine.sync(id)
+        dirty.clear()
+      }, 300)
     }
     window.addEventListener('online', refresh)
     document.addEventListener('visibilitychange', refresh)
@@ -50,7 +61,19 @@ export function startSync() {
         useSyncStatus.setState({ pending, rejected })
         for (const notice of notices)
           if (!notice.seen) {
-            toast.error(notice.message)
+            toast.error(
+              notice.message ?? '有新的行程提示',
+              notice.type
+                ? {
+                    action: {
+                      label: '查看',
+                      onClick: () => {
+                        window.location.href = `/trips/${notice.tripId}?notices=1`
+                      },
+                    },
+                  }
+                : undefined,
+            )
             void db.notices.update(notice.id!, { seen: true })
           }
       },
@@ -82,25 +105,58 @@ export function startSync() {
 }
 export function subscribeTrip(id: string) {
   const engine = active
-  if (!engine || !navigator.onLine) return () => {}
-  const events = new EventSource(`/api/trips/${id}/events`)
-  events.addEventListener('seq', (event) => {
-    const seq = JSON.parse((event as MessageEvent).data).latestSeq
-    void engine.db.trips.get(id).then((trip) => {
-      if (seq > (trip?.lastSeq ?? 0)) void engine.sync(id)
+  if (!engine) return () => {}
+  let events: EventSource | undefined
+  let terminal = false
+  const close = () => {
+    events?.close()
+    events = undefined
+  }
+  const connect = () => {
+    if (!navigator.onLine || document.visibilityState === 'hidden') {
+      close()
+      return
+    }
+    if (events || terminal || engine.stopped) return
+    events = new EventSource(`/api/trips/${id}/events`)
+    const source = events
+    void engine.sync(id)
+    source.addEventListener('error', () => {
+      if (source.readyState === EventSource.CLOSED) {
+        terminal = true
+        close()
+        void engine.sync(id)
+      }
     })
-  })
-  for (const [event, access] of [
-    ['revoked', 'revoked'],
-    ['trip_deleted', 'deleted'],
-  ] as const)
-    events.addEventListener(event, () => {
-      events.close()
-      void engine.revoke(id, access)
+    source.addEventListener('seq', (event) => {
+      const seq = JSON.parse((event as MessageEvent).data).latestSeq
+      void engine.db.trips.get(id).then((trip) => {
+        if (seq > (trip?.lastSeq ?? 0)) void engine.sync(id)
+      })
     })
-  events.addEventListener('unauthorized', () => {
-    events.close()
-    useSession.setState({ status: 'expired' })
-  })
-  return () => events.close()
+    for (const [event, access] of [
+      ['revoked', 'revoked'],
+      ['trip_deleted', 'deleted'],
+    ] as const)
+      source.addEventListener(event, () => {
+        terminal = true
+        close()
+        void engine.revoke(id, access)
+      })
+    source.addEventListener('unauthorized', () => {
+      terminal = true
+      close()
+      useSession.setState({ status: 'expired' })
+    })
+  }
+  window.addEventListener('online', connect)
+  window.addEventListener('offline', connect)
+  document.addEventListener('visibilitychange', connect)
+  connect()
+  return () => {
+    close()
+    window.removeEventListener('online', connect)
+    window.removeEventListener('offline', connect)
+    document.removeEventListener('visibilitychange', connect)
+  }
 }

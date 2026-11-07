@@ -209,6 +209,8 @@ select {
   z-index: 30;
 }
 .overlay-content {
+  display: flex;
+  flex-direction: column;
   position: fixed;
   z-index: 31;
   background: var(--card);
@@ -216,7 +218,11 @@ select {
   padding: 24px;
   border: 1px solid var(--border);
   max-height: 85dvh;
-  overflow: auto;
+  overflow: hidden;
+}
+.overlay-content > .stack {
+  overflow-y: auto;
+  min-height: 0;
 }
 .dialog {
   top: 50%;
@@ -233,6 +239,7 @@ select {
   padding-bottom: calc(24px + env(safe-area-inset-bottom));
 }
 .drawer-handle {
+  flex-shrink: 0;
   width: 40px;
   height: 4px;
   border-radius: 4px;

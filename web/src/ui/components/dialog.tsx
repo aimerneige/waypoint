@@ -4,8 +4,10 @@ export const DialogPortal = DialogPrimitive.Portal
 export const DialogTitle = DialogPrimitive.Title
 export const DialogDescription = DialogPrimitive.Description
 export const DialogClose = DialogPrimitive.Close
-export function DialogOverlay() {
-  return <DialogPrimitive.Overlay className="overlay-backdrop" />
+export function DialogOverlay(
+  props: React.ComponentProps<typeof DialogPrimitive.Overlay>,
+) {
+  return <DialogPrimitive.Overlay {...props} className="overlay-backdrop" />
 }
 export function DialogContent(
   props: React.ComponentProps<typeof DialogPrimitive.Content>,

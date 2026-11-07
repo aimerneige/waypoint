@@ -1,4 +1,11 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  type ReactNode,
+} from 'react'
 import { useMedia } from './hooks'
 import { overlayHistory } from './overlay-history'
 import {
@@ -11,6 +18,7 @@ import {
 } from './components/dialog'
 import {
   Drawer,
+  NestedDrawer,
   DrawerPortal,
   DrawerOverlay,
   DrawerContent,
@@ -18,6 +26,7 @@ import {
   DrawerDescription,
 } from './components/drawer'
 import { Button } from './components/button'
+const OverlayDepth = createContext(0)
 export function ResponsiveOverlay({
   open,
   onOpenChange,
@@ -34,6 +43,7 @@ export function ResponsiveOverlay({
   footer?: ReactNode
 }) {
   const desktop = useMedia('(min-width: 640px)')
+  const depth = useContext(OverlayDepth)
   const descriptionId = useId()
   const id = useRef<number | null>(null)
   const callback = useRef(onOpenChange)
@@ -57,7 +67,7 @@ export function ResponsiveOverlay({
     if (!value && id.current !== null) overlayHistory!.close(id.current)
     else callback.current(value)
   }
-  const Root = desktop ? Dialog : Drawer
+  const Root = desktop ? Dialog : depth > 0 ? NestedDrawer : Drawer
   const Portal = desktop ? DialogPortal : DrawerPortal
   const Backdrop = desktop ? DialogOverlay : DrawerOverlay
   const Content = desktop ? DialogContent : DrawerContent
@@ -66,10 +76,11 @@ export function ResponsiveOverlay({
   return (
     <Root open={open} onOpenChange={change}>
       <Portal>
-        <Backdrop />
+        <Backdrop style={{ zIndex: 30 + depth * 2 }} />
         <Content
           aria-describedby={description ? descriptionId : undefined}
           data-overlay={desktop ? 'dialog' : 'drawer'}
+          style={{ zIndex: 31 + depth * 2 }}
         >
           <div className="stack">
             <Title asChild>
@@ -78,7 +89,7 @@ export function ResponsiveOverlay({
             {description && (
               <Description id={descriptionId}>{description}</Description>
             )}
-            {children}
+            <OverlayDepth value={depth + 1}>{children}</OverlayDepth>
             <div className="row">
               {footer}
               <Button variant="outline" onClick={() => change(false)}>

@@ -150,9 +150,7 @@ it('rolls back rejected changes and records conflict notices', async () => {
   await updateEntity(db, 't', 'itinerary_item', id, { title: 'local' })
   await engine.sync('t')
   expect(
-    (await db.notices.toArray()).some((notice) =>
-      notice.message.includes('覆盖'),
-    ),
+    (await db.notices.toArray()).some((notice) => notice.type === 'conflict'),
   ).toBe(true)
   expect(
     (await db.entities.get(['t', 'itinerary_item', id]))?.view?.fields.title,
@@ -246,4 +244,71 @@ it('clears revoked trip data and pending work while preserving the tombstone', a
   expect((await db.notices.toArray())[0].message).toContain(
     '1 条未同步修改已丢弃',
   )
+})
+it('only notifies conflict participants, once per op and field, and not deleted remote editors', async () => {
+  const { db, server, engine } = await setup()
+  const op: ServerOp = {
+    opId: 'conflict',
+    tripId: 't',
+    actorUserId: 'stranger',
+    schemaVersion: 1,
+    entity: 'itinerary_item',
+    entityId: 'item',
+    kind: 'update',
+    fields: { title: 'new' },
+    baseSeq: {},
+    clientTime: '',
+    serverSeq: 2,
+    serverTime: '',
+    changes: { title: { old: 'old', new: 'new' } },
+    conflicts: [
+      {
+        field: 'title',
+        overwrittenValue: 'old',
+        overwrittenSeq: 1,
+        overwrittenActor: 'someone',
+      },
+    ],
+    entityDeleted: true,
+    origin: 'client',
+  }
+  server.logs = [op]
+  await engine.sync('t')
+  expect(await db.notices.count()).toBe(0)
+  await db.trips.update('t', { lastSeq: 1 })
+  op.conflicts![0].overwrittenActor = db.userId
+  await engine.sync('t')
+  expect(await db.notices.toArray()).toMatchObject([
+    {
+      type: 'conflict',
+      direction: 'overwritten',
+      oldValue: 'old',
+      newValue: 'new',
+      otherUserId: 'stranger',
+    },
+  ])
+  await db.trips.update('t', { lastSeq: 1 })
+  await engine.sync('t')
+  expect(await db.notices.count()).toBe(1)
+})
+it('creates deleted notices from own push results and deduplicates retries', async () => {
+  const { db, server, engine } = await setup()
+  await db.trips.update('t', { lastSeq: 0 })
+  const id = await createEntity(db, 't', 'itinerary_item', { title: 'A' })
+  await engine.sync('t')
+  await updateEntity(db, 't', 'itinerary_item', id, { title: 'B' })
+  const push = server.push.bind(server)
+  server.push = async (...args) => ({
+    results: (await push(...args)).results.map((result) => ({
+      ...result,
+      entityDeleted: true,
+      deletedBy: 'deleter',
+    })),
+  })
+  await engine.sync('t')
+  expect(await db.notices.toArray()).toMatchObject([
+    { type: 'deleted', otherUserId: 'deleter', entityId: id },
+  ])
+  await engine.sync('t')
+  expect(await db.notices.count()).toBe(1)
 })

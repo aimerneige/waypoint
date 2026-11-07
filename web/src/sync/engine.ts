@@ -286,6 +286,18 @@ export class SyncEngine {
               await this.db.outbox.update(op.localId!, {
                 acceptedSeq: item.serverSeq,
               })
+              if (item.entityDeleted) {
+                const key = `${op.opId}:deleted`
+                if (!(await this.db.notices.where('key').equals(key).count()))
+                  await this.db.notices.add({
+                    key,
+                    tripId: id,
+                    type: 'deleted',
+                    entity: op.entity,
+                    entityId: op.entityId,
+                    otherUserId: item.deletedBy ?? undefined,
+                  })
+              }
             }
           }
           await recomputeTrip(this.db, id)
@@ -321,16 +333,35 @@ export class SyncEngine {
               view: null,
             })
             await this.db.ops.put(op)
-            if (op.conflicts?.length || op.entityDeleted)
+            for (const conflict of op.conflicts ?? []) {
+              if (
+                op.actorUserId !== this.db.userId &&
+                conflict.overwrittenActor !== this.db.userId
+              )
+                continue
+              const key = `${op.opId}:${conflict.field}`
+              if (await this.db.notices.where('key').equals(key).count())
+                continue
               await this.db.notices.add({
+                key,
                 tripId: id,
+                type: 'conflict',
                 entity: op.entity,
                 entityId: op.entityId,
                 serverSeq: op.serverSeq,
-                message: op.entityDeleted
-                  ? '修改的实体已被删除，可选择恢复'
-                  : '修改覆盖了其他成员的值',
+                field: conflict.field,
+                oldValue: conflict.overwrittenValue,
+                newValue: op.fields[conflict.field],
+                direction:
+                  op.actorUserId === this.db.userId
+                    ? 'overwrote'
+                    : 'overwritten',
+                otherUserId:
+                  op.actorUserId === this.db.userId
+                    ? conflict.overwrittenActor
+                    : op.actorUserId,
               })
+            }
           }
           const cursor = page.hasMore
             ? page.ops.at(-1)?.serverSeq

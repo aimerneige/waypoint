@@ -65,18 +65,32 @@ export async function logoutSession(
   onBeforeLogout: () => Promise<void> = async () => {},
 ) {
   await onBeforeLogout()
+  await clearSession()
   try {
     await api.POST('/api/auth/logout')
   } catch (error) {
     // 已失效的会话无需再次撤销，仍允许用户退出本地账户。
-    if (!(error instanceof ApiError && error.status === 401)) throw error
+    if (
+      navigator.onLine &&
+      !(error instanceof TypeError) &&
+      !(error instanceof ApiError && error.status === 401)
+    )
+      throw error
   }
-  await clearSession()
+}
+export async function clearCredentialCache(userId: string) {
+  if (!('caches' in globalThis)) return
+  for (const key of await caches.keys())
+    if (key.startsWith(`waypoint-credentials-${userId}`))
+      await caches.delete(key)
 }
 export async function clearSession() {
   const user = useSession.getState().currentUser
   useSession.setState({ status: 'anonymous' })
-  if (user) await deleteDatabase(user.id)
+  if (user) {
+    await deleteDatabase(user.id)
+    await clearCredentialCache(user.id)
+  }
   await auth.onLogout()
   localStorage.removeItem('wp:lastUser')
   useSession.setState({ currentUser: null, status: 'anonymous' })

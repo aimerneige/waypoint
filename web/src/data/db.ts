@@ -13,6 +13,23 @@ export type Entity = {
   view: State | null
 }
 export type Pending = Op & { localId?: number; acceptedSeq?: number }
+export type Notice = {
+  id?: number
+  tripId: string
+  message?: string
+  seen?: boolean
+  dismissed?: boolean
+  type?: 'conflict' | 'deleted'
+  entity?: string
+  entityId?: string
+  serverSeq?: number
+  field?: string
+  oldValue?: unknown
+  newValue?: unknown
+  otherUserId?: string
+  direction?: 'overwrote' | 'overwritten'
+  key?: string
+}
 export class Database extends Dexie {
   trips!: Table<Trip, string>
   entities!: Table<Entity, [string, string, string]>
@@ -22,18 +39,7 @@ export class Database extends Dexie {
     string
   >
   ops!: Table<ServerOp, [string, number]>
-  notices!: Table<
-    {
-      id?: number
-      tripId: string
-      message: string
-      seen?: boolean
-      entity?: string
-      entityId?: string
-      serverSeq?: number
-    },
-    number
-  >
+  notices!: Table<Notice, number>
   meta!: Table<{ key: string; value: unknown }, string>
   constructor(public userId: string) {
     super(`waypoint-u-${userId}`)
@@ -46,6 +52,7 @@ export class Database extends Dexie {
       notices: '++id,tripId',
       meta: 'key',
     })
+    this.version(2).stores({ notices: '++id,tripId,&key' })
   }
 }
 const databases = new Map<string, Database>()
@@ -129,7 +136,7 @@ export async function writeEntity(
     })
     await recompute(db, row)
   })
-  localWrites.dispatchEvent(new Event('write'))
+  localWrites.dispatchEvent(new CustomEvent('write', { detail: { tripId } }))
 }
 export const createEntity = (
   db: Database,

@@ -10,7 +10,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react'
 import { bootstrapSession, useSession } from './platform/session'
 import { AppShell, TripLayout, useSyncStatus } from './ui/shell'
 import { overlayHistory } from './ui/overlay-history'
-import { Toaster } from './ui/components/sonner'
+import { Toaster, toast } from './ui/components/sonner'
 import { Button } from './ui/components/button'
 import { applyTheme } from './ui/theme/tokens'
 import { AuthPage, VerifyEmail } from './features/auth'
@@ -18,6 +18,7 @@ import { Account } from './features/account'
 import { MyTrips, TripPlaceholder, JoinTrip } from './features/trips'
 import { Members, TripSettings } from './features/trip-management'
 import { startSync } from './sync-runtime'
+import { Itinerary, TripHistory } from './features/itinerary'
 function Root() {
   const status = useSession((s) => s.status)
   const upgrade = useSyncStatus((s) => s.upgrade)
@@ -79,12 +80,19 @@ function Root() {
       {(needRefresh || upgrade) && (
         <div className="banner">
           <Button
-            onClick={() => {
-              if (needRefresh) void updateServiceWorker(true)
-              else window.location.reload()
+            onClick={async () => {
+              try {
+                const registration =
+                  await navigator.serviceWorker?.getRegistration()
+                await registration?.update()
+                await updateServiceWorker(true)
+                if (!registration?.waiting) window.location.reload()
+              } catch (error) {
+                toast.error(String(error))
+              }
             }}
           >
-            {upgrade ? '需要更新应用，点击刷新' : '有更新，点击刷新'}
+            {upgrade ? '应用版本过旧，请刷新更新' : '有更新，点击刷新'}
           </Button>
         </div>
       )}
@@ -134,7 +142,8 @@ export const router = createBrowserRouter([
                 path: '/trips/:tripId',
                 element: <TripLayout />,
                 children: [
-                  { index: true, element: <TripPlaceholder title="行程" /> },
+                  { index: true, element: <Itinerary /> },
+                  { path: 'history', element: <TripHistory /> },
                   { path: 'ledger', element: <TripPlaceholder title="账本" /> },
                   {
                     path: 'packing',
@@ -147,7 +156,6 @@ export const router = createBrowserRouter([
                     [
                       ['documents', '凭证'],
                       ['polls', '投票'],
-                      ['history', '修改记录'],
                     ] as const
                   ).map(([path, title]) => ({
                     path,

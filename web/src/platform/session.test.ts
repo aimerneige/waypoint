@@ -87,6 +87,23 @@ it('allows local logout of an already expired session', async () => {
   })
   expect(localStorage.getItem('wp:lastUser')).toBeNull()
 })
+it('cleans local data before logout and allows offline logout', async () => {
+  saveUser(user)
+  const cacheDelete = vi.fn(async () => true)
+  vi.stubGlobal('caches', {
+    keys: async () => ['waypoint-credentials-user-1-files', 'other-cache'],
+    delete: cacheDelete,
+  })
+  vi.spyOn(api, 'POST').mockImplementation(async () => {
+    expect(localStorage.getItem('wp:lastUser')).toBeNull()
+    expect(useSession.getState().currentUser).toBeNull()
+    throw new TypeError('offline')
+  })
+  await logoutSession()
+  expect(cacheDelete).toHaveBeenCalledExactlyOnceWith(
+    'waypoint-credentials-user-1-files',
+  )
+})
 it('clears only the logged-out database and can reopen it on the next login', async () => {
   saveUser(user)
   const own = database(user.id)
