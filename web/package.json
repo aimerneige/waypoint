@@ -31,7 +31,7 @@
     "dexie": "^4.4.7",
     "dexie-react-hooks": "^4.4.0",
     "fractional-indexing": "^4.0.0",
-    "heic2any": "^0.0.4",
+    "libheif-js": "^1.23.5",
     "lucide-react": "^1.70.0",
     "openapi-fetch": "^0.17.0",
     "pdfjs-dist": "^6.5.438",

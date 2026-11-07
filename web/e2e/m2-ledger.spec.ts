@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Page } from './csp'
 import { latestMailLink } from './mailpit'
 import { netBalances, settle } from '../src/domain/settlement'
 import { valueExpense } from '../src/domain/expense'

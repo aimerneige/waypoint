@@ -31,13 +31,8 @@ export async function prepareFile(file: File): Promise<File> {
   const mime = await detectFile(file)
   if (!mime) throw new Error('格式不支持，请选择 PDF、JPEG、PNG 或 HEIC')
   if (mime === 'image/heic') {
-    const { default: convert } = await import('heic2any')
-    const result = await convert({
-      blob: file,
-      toType: 'image/jpeg',
-      quality: 0.9,
-    })
-    const blob = Array.isArray(result) ? result[0] : result
+    const { convertHeic } = await import('./heic')
+    const blob = await convertHeic(file, 0.9)
     if (blob.size > 32 * 1024 * 1024)
       throw new Error('转换后的文件过大，不能超过 32MB')
     return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', {

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './csp'
 import { register, newTrip } from './m5-helpers'
 test.use({ actionTimeout: 10000 })
 

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './csp'
 import AxeBuilder from '@axe-core/playwright'
 import { register, newTrip, close } from './m5-helpers'
 test.use({ reducedMotion: 'reduce', actionTimeout: 10000 })

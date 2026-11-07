@@ -19,7 +19,7 @@ SMTP 必填：`SMTP_HOST`、`SMTP_PORT`、`SMTP_USER`、`SMTP_PASSWORD`、`SMTP_
 5. 停止 API，执行一次备份及恢复演练（README），然后重新启动 API。
 6. 不启用 dev profile，不公开 Mailpit；不要使用 `down -v`。
 
-CSP 禁止所有外部来源。`style-src 'unsafe-inline'` 用于 Radix/Vaul/缩放布局；现有 heic2any 解码器在 Blob Worker 内使用 `new Function`，因此 script-src 保留 `unsafe-eval`。不允许内联脚本，主题初始化使用同源 theme-init.js；替换 HEIC 解码器后应移除此例外。文件仅使用同源及 blob/data 图片，Worker 仅同源及 blob。
+CSP 禁止所有外部来源、内联脚本与 `unsafe-eval`。`script-src 'self' 'wasm-unsafe-eval'` 仅放行同源脚本与 `libheif-js` WASM 编译，主题初始化使用同源 `theme-init.js`，`pdfjs-dist` 显式设置 `isEvalSupported: false` 且 Worker 同源加载。`style-src 'self' 'unsafe-inline'` 用于 Sonner/Vaul/react-zoom-pan-pinch/Radix 运行时样式与内联变换样式。图片仅允许同源及 `blob:`/`data:`，字体与连接仅限同源，Worker 仅允许同源及 `blob:`，`frame-src`/`object-src`/`frame-ancestors` 均为 `'none'`。
 
 ## 本地 HTTPS 验证
 

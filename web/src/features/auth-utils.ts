@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { ApiError } from '@/api/client'
+z.config({ jitless: true })
 export const email = z.email('请输入有效的邮箱地址')
 export const password = z
   .string()

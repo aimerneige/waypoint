@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Page } from './csp'
 import { latestMailLink } from './mailpit'
 import { register, newTrip, synced, close } from './m5-helpers'
 import { fileURLToPath } from 'node:url'

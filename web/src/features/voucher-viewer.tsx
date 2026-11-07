@@ -1,10 +1,12 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
+import { Info, Share2 } from 'lucide-react'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import type { Database, Entity } from '@/data/db'
 import { useEntities } from '@/data/hooks'
 import { readVoucher } from '@/data/voucher-files'
 import { share } from '@/platform/share'
 import { formatDate } from '@/domain/format'
+import { fileSize, voucherTypes, type VoucherType } from '@/domain/vouchers'
 import { ResponsiveOverlay } from '@/ui/responsive-overlay'
 import { Button } from '@/ui/components/button'
 import { toast } from '@/ui/toast'
@@ -27,6 +29,7 @@ export function VoucherViewer({
     url: string
   } | null>(null)
   const [error, setError] = useState('')
+  const [infoOpen, setInfoOpen] = useState(false)
   const items = useEntities(db, tripId, 'itinerary_item')
   const f = voucher?.view?.fields
   const id = String(f?.fileId ?? '')
@@ -51,54 +54,102 @@ export function VoucherViewer({
     }
   }, [db, tripId, id, size])
   const file = loaded?.id === id ? loaded : null
+  const linkedItems = items.filter((i) =>
+    (i.view!.fields.voucherIds as string[] | undefined)?.includes(
+      voucher?.entityId ?? '',
+    ),
+  )
   return (
     <ResponsiveOverlay
       open={!!voucher}
       onOpenChange={(open) => {
-        if (!open) onClose()
+        if (!open) {
+          setInfoOpen(false)
+          onClose()
+        }
       }}
       title={String(f?.title ?? '查看凭证')}
       fullHeight
       fullscreen
       headerActions={
-        file && (
+        <>
           <Button
-            variant="outline"
-            onClick={() => {
-              void share
-                .share({
-                  title: String(f?.title),
-                  files: [
-                    new File(
-                      [file.blob],
-                      `${String(f?.title)}.${f?.mime === 'application/pdf' ? 'pdf' : f?.mime === 'image/png' ? 'png' : 'jpg'}`,
-                      { type: file.blob.type },
-                    ),
-                  ],
-                })
-                .catch((e) => {
-                  if (!(e instanceof DOMException && e.name === 'AbortError'))
-                    toast.error(String(e))
-                })
-            }}
+            variant="ghost"
+            className="viewer-icon-btn"
+            aria-label="凭证信息"
+            onClick={() => setInfoOpen(true)}
           >
-            分享/保存
+            <Info size={20} />
           </Button>
-        )
+          {file && (
+            <Button
+              variant="ghost"
+              className="viewer-icon-btn"
+              aria-label="分享/保存"
+              onClick={() => {
+                void share
+                  .share({
+                    title: String(f?.title),
+                    files: [
+                      new File(
+                        [file.blob],
+                        `${String(f?.title)}.${f?.mime === 'application/pdf' ? 'pdf' : f?.mime === 'image/png' ? 'png' : 'jpg'}`,
+                        { type: file.blob.type },
+                      ),
+                    ],
+                  })
+                  .catch((e) => {
+                    if (!(e instanceof DOMException && e.name === 'AbortError'))
+                      toast.error(String(e))
+                  })
+              }}
+            >
+              <Share2 size={20} />
+            </Button>
+          )}
+        </>
       }
     >
-      {error && <p role="alert">{error}</p>}
-      {!file && !error && <p role="status">正在打开凭证…</p>}
+      {error && (
+        <p className="viewer-status" role="alert">
+          {error}
+        </p>
+      )}
+      {!file && !error && (
+        <p className="viewer-status" role="status">
+          正在打开凭证…
+        </p>
+      )}
       {file && (
         <>
           {f?.mime === 'application/pdf' ? (
-            <Suspense fallback={<p>正在加载 PDF…</p>}>
+            <Suspense
+              fallback={
+                <p className="viewer-status" role="status">
+                  正在加载 PDF…
+                </p>
+              }
+            >
               <PDF blob={file.blob} />
             </Suspense>
           ) : (
             <div className="voucher-image" data-testid="image-viewer">
-              <TransformWrapper>
-                <TransformComponent>
+              <TransformWrapper
+                centerOnInit
+                minScale={1}
+                maxScale={4}
+                doubleClick={{ mode: 'toggle', step: 2 }}
+              >
+                <TransformComponent
+                  wrapperStyle={{ width: '100%', height: '100%' }}
+                  contentStyle={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
                   <img src={file.url} alt={String(f?.title)} />
                 </TransformComponent>
               </TransformWrapper>
@@ -106,20 +157,24 @@ export function VoucherViewer({
           )}
         </>
       )}
-      {!!f?.note && <p>{String(f.note)}</p>}
-      <h3>关联的行程</h3>
-      {items
-        .filter((i) =>
-          (i.view!.fields.voucherIds as string[] | undefined)?.includes(
-            voucher?.entityId ?? '',
-          ),
-        )
-        .map((i) => (
+      <ResponsiveOverlay
+        open={infoOpen && !!voucher}
+        onOpenChange={setInfoOpen}
+        title="凭证信息"
+      >
+        <p className="muted">
+          {voucherTypes[(f?.type as VoucherType) ?? 'other']} · {fileSize(size)}
+        </p>
+        {!!f?.note && <p>{String(f.note)}</p>}
+        <h3>关联的行程</h3>
+        {!linkedItems.length && <p className="muted">暂无关联行程</p>}
+        {linkedItems.map((i) => (
           <p key={i.entityId}>
             {formatDate(String(i.view!.fields.date))} ·{' '}
             {String(i.view!.fields.title)}
           </p>
         ))}
+      </ResponsiveOverlay>
     </ResponsiveOverlay>
   )
 }

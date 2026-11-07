@@ -6,6 +6,7 @@ import {
   useRef,
   type ReactNode,
 } from 'react'
+import { ArrowLeft } from 'lucide-react'
 import { useMedia } from './hooks'
 import { overlayHistory } from './overlay-history'
 import {
@@ -26,7 +27,7 @@ import {
   DrawerDescription,
 } from './components/drawer'
 import { Button } from './components/button'
-const OverlayDepth = createContext(0)
+const OverlayState = createContext({ depth: 0, inDrawer: false })
 export function ResponsiveOverlay({
   open,
   onOpenChange,
@@ -49,7 +50,7 @@ export function ResponsiveOverlay({
   headerActions?: ReactNode
 }) {
   const desktop = useMedia('(min-width: 640px)')
-  const depth = useContext(OverlayDepth)
+  const { depth, inDrawer } = useContext(OverlayState)
   const descriptionId = useId()
   const id = useRef<number | null>(null)
   const content = useRef<HTMLDivElement>(null)
@@ -76,21 +77,36 @@ export function ResponsiveOverlay({
       }
     }
   }, [open])
+  useEffect(() => {
+    if (!open || !fullscreen) return
+    const html = document.documentElement
+    const body = document.body
+    const prevHtml = html.style.overflow
+    const prevBody = body.style.overflow
+    html.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+    return () => {
+      html.style.overflow = prevHtml
+      body.style.overflow = prevBody
+    }
+  }, [open, fullscreen])
   function change(value: boolean) {
     if (!value && id.current !== null) overlayHistory!.close(id.current)
     else callback.current(value)
   }
   const dialog = desktop || fullscreen
-  const Root = dialog ? Dialog : depth > 0 ? NestedDrawer : Drawer
+  const Root = dialog ? Dialog : inDrawer ? NestedDrawer : Drawer
   const Portal = dialog ? DialogPortal : DrawerPortal
   const Backdrop = dialog ? DialogOverlay : DrawerOverlay
   const Content = dialog ? DialogContent : DrawerContent
   const Title = dialog ? DialogTitle : DrawerTitle
   const Description = dialog ? DialogDescription : DrawerDescription
+  const baseZ = fullscreen ? Math.max(50, 30 + depth * 2) : 30 + depth * 2
+  const nextDepth = fullscreen ? Math.max(depth + 1, 15) : depth + 1
   return (
     <Root open={open} onOpenChange={change}>
       <Portal>
-        <Backdrop style={{ zIndex: 30 + depth * 2 }} />
+        <Backdrop style={{ zIndex: baseZ }} />
         <Content
           ref={content}
           onOpenAutoFocus={(event) => {
@@ -111,15 +127,20 @@ export function ResponsiveOverlay({
           data-overlay={desktop ? 'dialog' : 'drawer'}
           data-fullscreen={fullscreen || undefined}
           style={{
-            zIndex: 31 + depth * 2,
-            ...(!desktop && fullHeight
+            zIndex: baseZ + 1,
+            ...(!desktop && fullHeight && !fullscreen
               ? { height: '96dvh', maxHeight: '96dvh' }
               : {}),
             ...(fullscreen
               ? {
                   inset: 0,
-                  width: '100%',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  width: '100vw',
                   height: '100dvh',
+                  maxWidth: 'none',
                   maxHeight: '100dvh',
                   transform: 'none',
                   borderRadius: 0,
@@ -127,35 +148,55 @@ export function ResponsiveOverlay({
               : {}),
           }}
         >
-          <div className="stack">
-            <div className={fullscreen ? 'viewer-toolbar row' : undefined}>
-              {fullscreen && (
+          {fullscreen ? (
+            <div className="viewer-shell">
+              <header className="viewer-toolbar">
                 <Button
                   variant="ghost"
+                  className="viewer-icon-btn"
                   aria-label="关闭"
                   onClick={() => change(false)}
                 >
-                  ← 返回
+                  <ArrowLeft size={20} />
                 </Button>
+                <Title asChild>
+                  <h2 className="viewer-title">{title}</h2>
+                </Title>
+                <div className="viewer-actions">{headerActions}</div>
+              </header>
+              {description && (
+                <Description id={descriptionId}>{description}</Description>
               )}
-              <Title asChild>
-                <h2>{title}</h2>
-              </Title>
-              {headerActions}
+              <div className="viewer-body">
+                <OverlayState value={{ depth: nextDepth, inDrawer: false }}>
+                  {children}
+                </OverlayState>
+              </div>
             </div>
-            {description && (
-              <Description id={descriptionId}>{description}</Description>
-            )}
-            <OverlayDepth value={depth + 1}>{children}</OverlayDepth>
-            <div className="row">
-              {footer}
-              {!fullscreen && (
+          ) : (
+            <div className="stack">
+              <div>
+                <Title asChild>
+                  <h2>{title}</h2>
+                </Title>
+                {headerActions}
+              </div>
+              {description && (
+                <Description id={descriptionId}>{description}</Description>
+              )}
+              <OverlayState
+                value={{ depth: nextDepth, inDrawer: inDrawer || !dialog }}
+              >
+                {children}
+              </OverlayState>
+              <div className="row">
+                {footer}
                 <Button variant="outline" onClick={() => change(false)}>
                   关闭
                 </Button>
-              )}
+              </div>
             </div>
-          </div>
+          )}
         </Content>
       </Portal>
     </Root>

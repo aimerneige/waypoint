@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Page } from './csp'
 import { latestMailLink } from './mailpit'
 test.use({ actionTimeout: 10000 })
 const synced = (p: Page) =>

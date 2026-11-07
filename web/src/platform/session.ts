@@ -6,6 +6,7 @@ import { auth } from './auth'
 import { deleteDatabase } from '@/data/db'
 import { settleFileDownloads } from '@/data/voucher-files'
 type User = components['schemas']['User']
+z.config({ jitless: true })
 const userSchema = z.object({
   id: z.string(),
   email: z.string(),

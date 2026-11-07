@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Page } from './csp'
 import { fileURLToPath } from 'node:url'
 import { latestMailLink } from './mailpit'
 test.use({ actionTimeout: 10000 })
@@ -18,7 +18,7 @@ async function close(p: Page) {
     .click()
   await expect(p.getByRole('dialog')).toHaveCount(0)
 }
-async function shots(p: Page, name: string) {
+async function shots(p: Page, project: string, name: string, fullPage = true) {
   const dialog = p.getByRole('dialog').last()
   if (await dialog.count())
     await dialog.evaluate(async (el) => {
@@ -29,11 +29,20 @@ async function shots(p: Page, name: string) {
       (t) => document.documentElement.classList.toggle('dark', t === 'dark'),
       theme,
     )
-    await p.screenshot({
-      path: `e2e/screenshots/m4-${name}-${theme}.png`,
-      animations: 'disabled',
-      fullPage: true,
-    })
+    if (!fullPage) {
+      await p.screenshot({
+        path: `e2e/screenshots/m5b-${project}-${name}-${theme}.png`,
+        animations: 'disabled',
+        fullPage: false,
+      })
+    }
+    if (project === 'mobile') {
+      await p.screenshot({
+        path: `e2e/screenshots/m4-${name}-${theme}.png`,
+        animations: 'disabled',
+        fullPage,
+      })
+    }
   }
   await p.evaluate(() => document.documentElement.classList.remove('dark'))
 }
@@ -45,9 +54,9 @@ test('M4 凭证共享、私有隔离、离线上传、缓存、HEIC 和查看器
   const options = {
     baseURL: info.project.use.baseURL,
     ignoreHTTPSErrors: true,
-    viewport: { width: 375, height: 812 },
-    isMobile: true,
-    hasTouch: true,
+    viewport: info.project.use.viewport ?? { width: 375, height: 812 },
+    isMobile: info.project.use.isMobile ?? false,
+    hasTouch: info.project.use.hasTouch ?? false,
     locale: 'zh-CN',
     timezoneId: 'Asia/Tokyo',
   }
@@ -113,35 +122,79 @@ test('M4 凭证共享、私有隔离、离线上传、缓存、HEIC 和查看器
     await a.getByLabel('类型', { exact: true }).selectOption('flight')
     await a.getByLabel('标题', { exact: true }).fill('东京机票')
     await a.getByRole('checkbox', { name: /东京集合/ }).check()
-    if (info.project.name === 'mobile') await shots(a, 'upload')
+    if (info.project.name === 'mobile')
+      await shots(a, info.project.name, 'upload')
     await save('东京机票')
     await synced(a)
     await expect(card(b, '东京机票')).toContainText('已离线可用')
     await expect(card(a, '东京机票')).toContainText('已离线可用')
-    if (info.project.name === 'mobile') await shots(b, 'list')
+    if (info.project.name === 'mobile')
+      await shots(b, info.project.name, 'list')
     await b.goto(path)
     await b.getByRole('button', { name: '▤ 东京机票', exact: true }).click()
     await expect(b.getByTestId('pdf-viewer').locator('canvas')).toHaveAttribute(
       'data-rendered',
       'true',
     )
-    if (info.project.name === 'mobile') await shots(b, 'pdf')
-    const canvas = b.getByTestId('pdf-viewer').locator('canvas')
+    const pdfViewer = b.getByRole('dialog', { name: '东京机票', exact: true })
+    const pdfCheck = await pdfViewer.evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      const hit = document.elementFromPoint(innerWidth / 2, 10)
+      return {
+        top: Math.round(r.top),
+        left: Math.round(r.left),
+        width: Math.round(r.width),
+        height: Math.round(r.height),
+        innerWidth,
+        innerHeight,
+        hitInsideViewer: Boolean(hit && el.contains(hit)),
+        hitInsideAppHeader: Boolean(hit && hit.closest('.app-header')),
+      }
+    })
+    expect(pdfCheck).toEqual({
+      top: 0,
+      left: 0,
+      width: pdfCheck.innerWidth,
+      height: pdfCheck.innerHeight,
+      innerWidth: pdfCheck.innerWidth,
+      innerHeight: pdfCheck.innerHeight,
+      hitInsideViewer: true,
+      hitInsideAppHeader: false,
+    })
+    const canvas = b.getByTestId('pdf-viewer').locator('canvas').first()
+    const cssWidth = await canvas.evaluate(
+      (el: HTMLCanvasElement) => el.getBoundingClientRect().width,
+    )
+    expect(cssWidth).toBeGreaterThanOrEqual(pdfCheck.innerWidth * 0.9)
+    await expect(b.getByTestId('pdf-page-indicator')).toHaveText('第 1 / 1 页')
+    await shots(b, info.project.name, 'pdf', false)
+    await b.getByRole('button', { name: '凭证信息', exact: true }).click()
+    await expect(
+      b.getByRole('dialog', { name: '凭证信息', exact: true }),
+    ).toContainText('东京集合')
+    await b
+      .getByRole('dialog', { name: '凭证信息', exact: true })
+      .getByRole('button', { name: '关闭', exact: true })
+      .click()
     const width = await canvas.evaluate((el: HTMLCanvasElement) => el.width)
     await b.getByRole('button', { name: '放大 PDF', exact: true }).click()
     await expect
       .poll(() => canvas.evaluate((el: HTMLCanvasElement) => el.width))
       .toBeGreaterThan(width)
-    expect(
-      await b
-        .getByRole('dialog')
-        .evaluate(
-          (el) => Math.round(el.getBoundingClientRect().height) === innerHeight,
-        ),
-    ).toBe(true)
     await b.goBack()
     await expect(b.getByRole('dialog')).toHaveCount(0)
-    if (info.project.name === 'mobile') await shots(b, 'itinerary')
+    if (info.project.name === 'desktop') {
+      const trigger = b.getByRole('button', { name: '▤ 东京机票', exact: true })
+      await trigger.click()
+      await expect(
+        b.getByTestId('pdf-viewer').locator('canvas'),
+      ).toHaveAttribute('data-rendered', 'true')
+      await b.keyboard.press('Escape')
+      await expect(b.getByRole('dialog')).toHaveCount(0)
+      await expect(trigger).toBeFocused()
+    }
+    if (info.project.name === 'mobile')
+      await shots(b, info.project.name, 'itinerary')
     await b.getByRole('button').filter({ hasText: '东京集合' }).first().click()
     await expect(
       b.getByRole('checkbox', { name: '东京机票', exact: true }),
@@ -199,7 +252,32 @@ test('M4 凭证共享、私有隔离、离线上传、缓存、HEIC 和查看器
         .locator('img')
         .evaluate((img: HTMLImageElement) => img.naturalWidth),
     ).toBeGreaterThan(0)
-    if (info.project.name === 'mobile') await shots(b, 'image')
+    const imgViewer = b.getByRole('dialog', { name: '共享图片', exact: true })
+    const imgCheck = await imgViewer.evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      const hit = document.elementFromPoint(innerWidth / 2, 10)
+      return {
+        top: Math.round(r.top),
+        left: Math.round(r.left),
+        width: Math.round(r.width),
+        height: Math.round(r.height),
+        innerWidth,
+        innerHeight,
+        hitInsideViewer: Boolean(hit && el.contains(hit)),
+        hitInsideAppHeader: Boolean(hit && hit.closest('.app-header')),
+      }
+    })
+    expect(imgCheck).toEqual({
+      top: 0,
+      left: 0,
+      width: imgCheck.innerWidth,
+      height: imgCheck.innerHeight,
+      innerWidth: imgCheck.innerWidth,
+      innerHeight: imgCheck.innerHeight,
+      hitInsideViewer: true,
+      hitInsideAppHeader: false,
+    })
+    await shots(b, info.project.name, 'image', false)
     await close(b)
     await b.getByRole('button', { name: '东京机票', exact: true }).click()
     await expect(b.getByTestId('pdf-viewer').locator('canvas')).toHaveAttribute(
@@ -250,10 +328,11 @@ test('M4 凭证共享、私有隔离、离线上传、缓存、HEIC 和查看器
         return size
       })
     const before = await cacheSize()
+    const actionRole = info.project.name === 'desktop' ? 'menuitem' : 'button'
     await b
       .getByRole('button', { name: '凭证操作 共享图片', exact: true })
       .click()
-    await b.getByRole('button', { name: '取消离线', exact: true }).click()
+    await b.getByRole(actionRole, { name: '取消离线', exact: true }).click()
     await expect(card(b, '共享图片')).toContainText('未离线')
     await expect.poll(cacheSize).toBeLessThan(before)
     await b.reload()
@@ -262,7 +341,7 @@ test('M4 凭证共享、私有隔离、离线上传、缓存、HEIC 和查看器
     await b
       .getByRole('button', { name: '凭证操作 共享图片', exact: true })
       .click()
-    await b.getByRole('button', { name: '重新离线', exact: true }).click()
+    await b.getByRole(actionRole, { name: '重新离线', exact: true }).click()
     await expect(card(b, '共享图片')).toContainText('已离线可用')
     const userId = await b.evaluate(
       () => JSON.parse(localStorage.getItem('wp:lastUser')!).id as string,

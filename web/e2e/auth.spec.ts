@@ -1,9 +1,4 @@
-import {
-  test,
-  expect,
-  type Page,
-  type APIRequestContext,
-} from '@playwright/test'
+import { test, expect, type Page, type APIRequestContext } from './csp'
 import { latestMailLink } from './mailpit'
 const password = 'Waypoint-test-123'
 async function register(page: Page, name = '旅人') {
